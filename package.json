@@ -1,0 +1,43 @@
+{
+  "name": "pilates-espaco-mulher",
+  "version": "1.0.0",
+  "description": "Aplicativo mobile nativo para avaliação fisioterapêutica e prescrição de Pilates - Dra. Rogéria Collares",
+  "main": "index.ts",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test tests/**/*.test.js"
+  },
+  "dependencies": {
+    "expo": "~57.0.22",
+    "react": "19.2.3",
+    "react-native": "0.86.3",
+    "expo-sqlite": "~57.0.3",
+    "expo-haptics": "~57.0.3",
+    "expo-print": "~57.0.2",
+    "expo-sharing": "~57.0.19",
+    "react-native-svg": "15.15.5",
+    "firebase": "^12.19.0",
+    "@react-navigation/native": "^7.3.18",
+    "@react-navigation/bottom-tabs": "^7.18.18",
+    "@react-navigation/native-stack": "^7.18.10",
+    "react-native-screens": "~4.27.0",
+    "react-native-safe-area-context": "~5.9.1",
+    "expo-camera": "~57.0.4",
+    "expo-image-picker": "~57.0.17",
+    "expo-constants": "~57.0.18",
+    "expo-status-bar": "~57.0.1",
+    "@expo/vector-icons": "^15.1.1"
+  },
+  "devDependencies": {
+    "typescript": "~6.0.3",
+    "@types/react": "~19.2.2",
+    "@types/react-native": "^0.73.0",
+    "@types/node": "^22.14.0",
+    "tsx": "^4.23.13"
+  },
+  "private": true
+}

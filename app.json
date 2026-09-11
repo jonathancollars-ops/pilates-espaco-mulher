@@ -1,0 +1,72 @@
+{
+  "expo": {
+    "name": "Pilates Espaço Mulher",
+    "slug": "pilates-espaco-mulher",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FAF8F5"
+    },
+    "primaryColor": "#9B6CBA",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.espacomulher.pilates",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Permitir acesso à câmera para captura de fotos na avaliação postural com grid visual de alinhamento.",
+        "NSPhotoLibraryUsageDescription": "Permitir acesso à galeria para seleção e importação de fotos de avaliação postural.",
+        "NSPhotoLibraryAddUsageDescription": "Permitir salvar relatórios clínicos gerados na galeria de fotos."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#9B6CBA"
+      },
+      "package": "com.espacomulher.pilates",
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ]
+    },
+    "plugins": [
+      "expo-sqlite",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Permitir acesso à câmera para captura de fotos de avaliação postural com grid de alinhamento."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Permitir acesso à galeria para importação de fotos de avaliação postural."
+        }
+      ]
+    ],
+    "extra": {
+      "clinician": {
+        "name": "Dra. Rogéria Collares",
+        "crefito": "CREFITO 23093-F",
+        "clinic": "Pilates Espaço Mulher",
+        "neighborhood": "Costa Azul",
+        "city": "Rio das Ostras",
+        "state": "RJ",
+        "phone": "(22) 99947-4304"
+      },
+      "firebase": {
+        "apiKey": "AIzaSyDTW3CGDdCnhdq5xm3kFC6DdwCDnbkUa5o",
+        "authDomain": "espacomulher-84137.firebaseapp.com",
+        "projectId": "espacomulher-84137",
+        "storageBucket": "espacomulher-84137.firebasestorage.app",
+        "messagingSenderId": "484275307620",
+        "appId": "1:484275307620:web:511b242f9ff23e703f4b71",
+        "measurementId": "G-7FZV1VKLZY"
+      }
+    }
+  }
+}
