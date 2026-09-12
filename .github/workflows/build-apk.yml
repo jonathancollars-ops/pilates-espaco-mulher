@@ -1,4 +1,4 @@
-name: Build Android APK
+﻿name: Build Android APK
 
 on:
   push:
@@ -19,6 +19,7 @@ jobs:
   build:
     name: Compilar APK Android
     runs-on: ubuntu-latest
+    timeout-minutes: 35
 
     steps:
       - name: 📥 Clonar Repositório
@@ -49,13 +50,21 @@ jobs:
         run: npm run typecheck
 
       - name: ⚙️ Expo Prebuild (Gerar Projeto Android Nativo)
-        run: npx expo prebuild --platform android --clean --no-install
+        run: |
+          npx expo prebuild --platform android --clean --no-install
+          
+          # Aumentar limites de memória do JVM/Gradle para evitar OutOfMemoryError no runner do GitHub
+          sed -i 's/org.gradle.jvmargs=.*/org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1536m -XX:+UseG1GC/g' android/gradle.properties
+          echo "kotlin.daemon.jvmargs=-Xmx1536m" >> android/gradle.properties
 
       - name: 🔨 Compilar APK Release (Gradle)
+        env:
+          JAVA_OPTS: "-Xmx4096m -XX:MaxMetaspaceSize=1536m"
+          GRADLE_OPTS: "-Dorg.gradle.jvmargs=\"-Xmx4096m -XX:MaxMetaspaceSize=1536m -XX:+UseG1GC\" -Dorg.gradle.daemon=false"
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleRelease --no-daemon
+          ./gradlew assembleRelease --no-daemon --no-parallel
 
       - name: 🏷️ Organizar APK para Publicação
         run: |
