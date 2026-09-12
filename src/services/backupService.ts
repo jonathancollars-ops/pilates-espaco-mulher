@@ -29,6 +29,8 @@ import { PosturalEvaluation } from '../types/postural';
 import { Bioimpedance } from '../types/bioimpedance';
 import { Exercise } from '../types/exercise';
 import { Routine, RoutineItem } from '../types/routine';
+import { Appointment } from '../types/appointment';
+import { PackagePlan } from '../types/package';
 
 export interface BackupExportResult {
   success: boolean;
@@ -82,6 +84,30 @@ export function sanitizePatientStatus(status: unknown): 'active' | 'archived' | 
 }
 
 /**
+ * Sanitizes package plan status to allowed domain values.
+ */
+export function sanitizePackageStatus(status: unknown): 'active' | 'completed' | 'expired' {
+  if (status === 'completed' || status === 'expired') return status;
+  return 'active';
+}
+
+/**
+ * Sanitizes appointment status to allowed domain values.
+ */
+export function sanitizeAppointmentStatus(status: unknown): 'scheduled' | 'attended' | 'cancelled' | 'absent' | 'rescheduled' {
+  if (status === 'attended' || status === 'cancelled' || status === 'absent' || status === 'rescheduled') return status;
+  return 'scheduled';
+}
+
+/**
+ * Sanitizes appointment type to allowed domain values.
+ */
+export function sanitizeAppointmentType(type: unknown): 'pilates_individual' | 'pilates_group' | 'clinical_evaluation' | 'rehabilitation' {
+  if (type === 'pilates_group' || type === 'clinical_evaluation' || type === 'rehabilitation') return type;
+  return 'pilates_individual';
+}
+
+/**
  * Safely sanitizes JSON-encoded anamnesis clinical fields.
  */
 export function sanitizeJsonField(value: unknown): string | null {
@@ -132,6 +158,112 @@ export function validateBackupDataSchema(data: any): asserts data is BackupData 
       }
     }
   }
+
+  const optionalTables = [
+    'appointments',
+    'package_plans',
+  ] as const;
+
+  for (let i = 0; i < optionalTables.length; i++) {
+    const table = optionalTables[i];
+    const rows = data[table];
+    if (rows !== undefined && rows !== null) {
+      if (!Array.isArray(rows)) {
+        throw new Error(`Tabela com formato inválido no backup: ${table}`);
+      }
+      const len = rows.length;
+      for (let j = 0; j < len; j++) {
+        const row = rows[j];
+        if (!row || typeof row !== 'object' || Array.isArray(row)) {
+          throw new Error(`Registro inválido na tabela ${table}: formato de objeto esperado.`);
+        }
+        if (typeof row.id !== 'string' || row.id.trim() === '') {
+          throw new Error(`Registro inválido na tabela ${table}: identificador id obrigatório ausente.`);
+        }
+
+        if (table === 'appointments') {
+          // Status validation
+          if (row.status !== undefined && row.status !== null) {
+            const validStatuses = ['scheduled', 'attended', 'cancelled', 'absent', 'rescheduled'];
+            if (typeof row.status !== 'string' || !validStatuses.includes(row.status)) {
+              throw new Error(`Registro inválido na tabela appointments: status '${row.status}' não é permitido.`);
+            }
+          }
+          // Start time validation (HH:MM 24h)
+          if (row.start_time !== undefined && row.start_time !== null) {
+            if (typeof row.start_time !== 'string' || !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(row.start_time)) {
+              throw new Error(`Registro inválido na tabela appointments: start_time '${row.start_time}' deve estar no formato HH:MM (24h).`);
+            }
+          }
+          // End time validation (HH:MM 24h)
+          if (row.end_time !== undefined && row.end_time !== null) {
+            if (typeof row.end_time !== 'string' || !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(row.end_time)) {
+              throw new Error(`Registro inválido na tabela appointments: end_time '${row.end_time}' deve estar no formato HH:MM (24h).`);
+            }
+          }
+          // Date validation (YYYY-MM-DD)
+          if (row.date !== undefined && row.date !== null) {
+            if (typeof row.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(row.date)) {
+              throw new Error(`Registro inválido na tabela appointments: date '${row.date}' deve estar no formato YYYY-MM-DD.`);
+            }
+          }
+          // Type validation
+          if (row.type !== undefined && row.type !== null) {
+            const validTypes = ['pilates_individual', 'pilates_group', 'clinical_evaluation', 'rehabilitation'];
+            if (typeof row.type !== 'string' || !validTypes.includes(row.type)) {
+              throw new Error(`Registro inválido na tabela appointments: type '${row.type}' não é permitido.`);
+            }
+          }
+          // Notes validation: must be string or null, must not contain null-bytes
+          if (row.notes !== undefined && row.notes !== null) {
+            if (typeof row.notes !== 'string' || row.notes.includes('\0')) {
+              throw new Error(`Registro inválido na tabela appointments: campo notes com formato inválido ou caracteres nulos proibidos.`);
+            }
+          }
+        }
+
+        if (table === 'package_plans') {
+          // Status validation
+          if (row.status !== undefined && row.status !== null) {
+            const validStatuses = ['active', 'completed', 'expired'];
+            if (typeof row.status !== 'string' || !validStatuses.includes(row.status)) {
+              throw new Error(`Registro inválido na tabela package_plans: status '${row.status}' não é permitido.`);
+            }
+          }
+          // Total sessions validation
+          if (row.total_sessions !== undefined && row.total_sessions !== null) {
+            if (typeof row.total_sessions !== 'number' || !Number.isFinite(row.total_sessions) || row.total_sessions < 1) {
+              throw new Error(`Registro inválido na tabela package_plans: total_sessions deve ser um número maior ou igual a 1.`);
+            }
+          }
+          // Completed sessions validation
+          if (row.completed_sessions !== undefined && row.completed_sessions !== null) {
+            if (typeof row.completed_sessions !== 'number' || !Number.isFinite(row.completed_sessions) || row.completed_sessions < 0) {
+              throw new Error(`Registro inválido na tabela package_plans: completed_sessions deve ser um número não negativo.`);
+            }
+          }
+          // Start date validation (YYYY-MM-DD)
+          if (row.start_date !== undefined && row.start_date !== null) {
+            if (typeof row.start_date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(row.start_date)) {
+              throw new Error(`Registro inválido na tabela package_plans: start_date '${row.start_date}' deve estar no formato YYYY-MM-DD.`);
+            }
+          }
+          // Expiration date validation (YYYY-MM-DD)
+          if (row.expiration_date !== undefined && row.expiration_date !== null) {
+            if (typeof row.expiration_date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(row.expiration_date)) {
+              throw new Error(`Registro inválido na tabela package_plans: expiration_date '${row.expiration_date}' deve estar no formato YYYY-MM-DD.`);
+            }
+          }
+          // Notes validation: must be string or null, must not contain null-bytes
+          if (row.notes !== undefined && row.notes !== null) {
+            if (typeof row.notes !== 'string' || row.notes.includes('\0')) {
+              throw new Error(`Registro inválido na tabela package_plans: campo notes com formato inválido ou caracteres nulos proibidos.`);
+            }
+          }
+        }
+      }
+    }
+  }
 }
 
 /**
@@ -177,6 +309,24 @@ export function validateBackupPayload(payload: any): asserts payload is EspacoMu
     }
   }
 
+  // Check appointments foreign keys
+  if (Array.isArray(data.appointments)) {
+    for (const apt of data.appointments) {
+      if (!patientIds.has(apt.patient_id)) {
+        throw new Error(`Integridade referencial violada: Agendamento ${apt.id} referencia paciente inexistente ${apt.patient_id}.`);
+      }
+    }
+  }
+
+  // Check package_plans foreign keys
+  if (Array.isArray(data.package_plans)) {
+    for (const pkg of data.package_plans) {
+      if (!patientIds.has(pkg.patient_id)) {
+        throw new Error(`Integridade referencial violada: Pacote de sessões ${pkg.id} referencia paciente inexistente ${pkg.patient_id}.`);
+      }
+    }
+  }
+
   // 2. Referential integrity check: Routine Items foreign keys
   const routineIds = new Set<string>(data.routines.map((r: any) => r.id));
   const exerciseIds = new Set<string>(data.exercises.map((e: any) => e.id));
@@ -214,7 +364,23 @@ export async function exportDatabaseBackup(
   const versionRow = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version;');
   const databaseVersion = versionRow?.user_version ?? 1;
 
-  const counts = {
+  let appointments: Appointment[] = [];
+  let package_plans: PackagePlan[] = [];
+
+  try {
+    const res = await db.getAllAsync<Appointment>('SELECT * FROM appointments ORDER BY date ASC, start_time ASC;');
+    if (Array.isArray(res)) appointments = res;
+  } catch {
+    appointments = [];
+  }
+  try {
+    const res = await db.getAllAsync<PackagePlan>('SELECT * FROM package_plans ORDER BY created_at ASC;');
+    if (Array.isArray(res)) package_plans = res;
+  } catch {
+    package_plans = [];
+  }
+
+  const counts: EspacoMulherBackupV1['metadata']['counts'] = {
     patients: patients.length,
     anamnesis: anamnesis.length,
     postural_evaluations: postural.length,
@@ -223,6 +389,12 @@ export async function exportDatabaseBackup(
     routines: routines.length,
     routine_items: routine_items.length,
   };
+
+  const hasV2Data = databaseVersion >= 2 || appointments.length > 0 || package_plans.length > 0;
+  if (hasV2Data) {
+    counts.appointments = appointments.length;
+    counts.package_plans = package_plans.length;
+  }
 
   const backup: EspacoMulherBackupV1 = {
     metadata: {
@@ -248,6 +420,7 @@ export async function exportDatabaseBackup(
       exercises,
       routines,
       routine_items,
+      ...(hasV2Data ? { appointments, package_plans } : {}),
     },
   };
 
@@ -320,6 +493,8 @@ export async function importDatabaseBackup(
   await db.withTransactionAsync(async () => {
     // Reverse topological deletion to respect foreign keys
     await db.execAsync(`
+      DELETE FROM appointments;
+      DELETE FROM package_plans;
       DELETE FROM routine_items;
       DELETE FROM routines;
       DELETE FROM bioimpedance;
@@ -529,6 +704,57 @@ export async function importDatabaseBackup(
           sanitizeText(item.updated_at) || new Date().toISOString(),
         ]
       );
+    }
+
+    // 8. Restore package plans (references patients)
+    if (Array.isArray(data.package_plans)) {
+      for (const pkg of data.package_plans) {
+        await db.runAsync(
+          `INSERT INTO package_plans (
+            id, patient_id, total_sessions, completed_sessions,
+            start_date, expiration_date, status, price_cents, notes,
+            created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+          [
+            sanitizeText(pkg.id),
+            sanitizeText(pkg.patient_id),
+            Math.max(1, sanitizeNumber(pkg.total_sessions, 1)),
+            Math.max(0, sanitizeNumber(pkg.completed_sessions, 0)),
+            sanitizeText(pkg.start_date),
+            sanitizeText(pkg.expiration_date),
+            sanitizePackageStatus(pkg.status),
+            sanitizeOptionalNumber(pkg.price_cents),
+            sanitizeText(pkg.notes),
+            sanitizeText(pkg.created_at) || new Date().toISOString(),
+            sanitizeText(pkg.updated_at) || new Date().toISOString(),
+          ]
+        );
+      }
+    }
+
+    // 9. Restore appointments (references patients)
+    if (Array.isArray(data.appointments)) {
+      for (const apt of data.appointments) {
+        await db.runAsync(
+          `INSERT INTO appointments (
+            id, patient_id, patient_name, date, start_time, end_time,
+            type, status, notes, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+          [
+            sanitizeText(apt.id),
+            sanitizeText(apt.patient_id),
+            sanitizeText(apt.patient_name) || '',
+            sanitizeText(apt.date),
+            sanitizeText(apt.start_time),
+            sanitizeText(apt.end_time),
+            sanitizeAppointmentType(apt.type),
+            sanitizeAppointmentStatus(apt.status),
+            sanitizeText(apt.notes),
+            sanitizeText(apt.created_at) || new Date().toISOString(),
+            sanitizeText(apt.updated_at) || new Date().toISOString(),
+          ]
+        );
+      }
     }
 
     // Fail-safe verification of foreign keys

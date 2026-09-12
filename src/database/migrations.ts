@@ -4,7 +4,12 @@
  */
 
 import { SQLiteDatabase } from 'expo-sqlite';
-import { SCHEMA_V1_DDL, SCHEMA_V1_INDICES } from './schema';
+import {
+  SCHEMA_V1_DDL,
+  SCHEMA_V1_INDICES,
+  SCHEMA_V2_DDL,
+  SCHEMA_V2_INDICES,
+} from './schema';
 import { seedInitialExercises } from './seeds';
 
 export interface Migration {
@@ -24,6 +29,16 @@ export const MIGRATIONS: Migration[] = [
       await db.execAsync(SCHEMA_V1_INDICES);
       // 3. Seed classical Pilates catalog (49 exercises)
       await seedInitialExercises(db);
+    },
+  },
+  {
+    version: 2,
+    name: 'v2_clinical_appointments_and_packages',
+    up: async (db: SQLiteDatabase) => {
+      // 1. Create appointments and package_plans tables
+      await db.execAsync(SCHEMA_V2_DDL);
+      // 2. Create performance indices
+      await db.execAsync(SCHEMA_V2_INDICES);
     },
   },
 ];

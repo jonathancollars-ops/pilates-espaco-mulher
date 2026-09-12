@@ -10,3 +10,5 @@ export * from './bioimpedance';
 export * from './exercise';
 export * from './routine';
 export * from './backup';
+export * from './appointment';
+export * from './package';

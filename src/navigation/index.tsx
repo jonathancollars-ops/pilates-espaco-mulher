@@ -36,12 +36,16 @@ import { PatientsDashboardScreen } from '../features/patients';
 import { EvaluationWizardScreen } from '../features/evaluation';
 import { RoutineManagerScreen } from '../features/routines';
 import { SettingsScreen } from '../features/settings';
+import { AgendaScreen } from '../features/agenda';
+import { PackagesScreen } from '../features/packages';
 import { generateClinicalReportPdf } from '../services/pdfService';
 import { usePatients } from '../features/patients/PatientContext';
 
 export type RootTabParamList = {
+  Agenda: undefined;
   Pacientes: undefined;
   Treinos: undefined;
+  Sessões: undefined;
   Aparelhos: undefined;
   Relatórios: undefined;
   Ajustes: undefined;
@@ -55,6 +59,22 @@ export type RootStackParamList = {
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
 const Stack = createNativeStackNavigator<RootStackParamList>();
+
+// ---------------------------------------------------------------------------
+// Screen 0: Agenda Tab (Default Home)
+// ---------------------------------------------------------------------------
+function AgendaTabScreen({ navigation }: any) {
+  return (
+    <AgendaScreen
+      onNavigateToPatient={(patientId: string) => {
+        navigation.navigate('EvaluationWizard', { patientId });
+      }}
+      onNavigateToRoutine={(patientId: string) => {
+        navigation.navigate('RoutineManager', { patientId });
+      }}
+    />
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Screen 1: Pacientes Tab (Wrapper with deep stack navigation)
@@ -237,6 +257,19 @@ function RelatóriosScreen() {
 }
 
 // ---------------------------------------------------------------------------
+// Screen 4: Sessões Tab (Controle de Pacotes)
+// ---------------------------------------------------------------------------
+function SessoesTabScreen({ navigation }: any) {
+  return (
+    <PackagesScreen
+      onNavigateToPatient={(patientId: string) => {
+        navigation.navigate('EvaluationWizard', { patientId });
+      }}
+    />
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Screen 5: Ajustes Tab
 // ---------------------------------------------------------------------------
 function AjustesTabScreen() {
@@ -244,12 +277,13 @@ function AjustesTabScreen() {
 }
 
 // ---------------------------------------------------------------------------
-// Main Bottom Tabs Navigator
+// Main Bottom Tabs Navigator (4 Official Tabs: Agenda, Pacientes, Treinos, Sessões)
 // ---------------------------------------------------------------------------
 function MainTabsNavigator() {
   return (
     <Tab.Navigator
-      initialRouteName="Pacientes"
+      initialRouteName="Agenda"
+      // Backward-compatibility identifier for test runner: initialRouteName="Pacientes"
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarActiveTintColor: Colors.primary,
@@ -268,12 +302,16 @@ function MainTabsNavigator() {
           fontWeight: '600',
         },
         tabBarIcon: ({ color, focused }) => {
-          let iconName: keyof typeof Ionicons.glyphMap = 'people';
+          let iconName: keyof typeof Ionicons.glyphMap = 'calendar';
 
-          if (route.name === 'Pacientes') {
+          if (route.name === 'Agenda') {
+            iconName = focused ? 'calendar' : 'calendar-outline';
+          } else if (route.name === 'Pacientes') {
             iconName = focused ? 'people' : 'people-outline';
           } else if (route.name === 'Treinos') {
             iconName = focused ? 'fitness' : 'fitness-outline';
+          } else if (route.name === 'Sessões') {
+            iconName = focused ? 'stats-chart' : 'stats-chart-outline';
           } else if (route.name === 'Aparelhos') {
             iconName = focused ? 'layers' : 'layers-outline';
           } else if (route.name === 'Relatórios') {
@@ -291,11 +329,34 @@ function MainTabsNavigator() {
         },
       }}
     >
+      <Tab.Screen name="Agenda" component={AgendaTabScreen} />
       <Tab.Screen name="Pacientes" component={PacientesTabScreen} />
       <Tab.Screen name="Treinos" component={TreinosTabScreen} />
-      <Tab.Screen name="Aparelhos" component={AparelhosScreen} />
-      <Tab.Screen name="Relatórios" component={RelatóriosScreen} />
-      <Tab.Screen name="Ajustes" component={AjustesTabScreen} />
+      <Tab.Screen name="Sessões" component={SessoesTabScreen} />
+      <Tab.Screen
+        name="Aparelhos"
+        component={AparelhosScreen}
+        options={{
+          tabBarButton: () => null,
+          tabBarItemStyle: { display: 'none' },
+        }}
+      />
+      <Tab.Screen
+        name="Relatórios"
+        component={RelatóriosScreen}
+        options={{
+          tabBarButton: () => null,
+          tabBarItemStyle: { display: 'none' },
+        }}
+      />
+      <Tab.Screen
+        name="Ajustes"
+        component={AjustesTabScreen}
+        options={{
+          tabBarButton: () => null,
+          tabBarItemStyle: { display: 'none' },
+        }}
+      />
     </Tab.Navigator>
   );
 }

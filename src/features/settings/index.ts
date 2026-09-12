@@ -4,3 +4,4 @@
  */
 
 export * from './SettingsScreen';
+export * from './SettingsModalSheet';

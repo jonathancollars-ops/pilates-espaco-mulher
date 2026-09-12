@@ -9,3 +9,5 @@ export * from './posturalRepository';
 export * from './bioimpedanceRepository';
 export * from './exerciseRepository';
 export * from './routineRepository';
+export * from './appointmentRepository';
+export * from './packageRepository';

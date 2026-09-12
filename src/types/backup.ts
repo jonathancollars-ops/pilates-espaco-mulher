@@ -9,6 +9,8 @@ import { PosturalEvaluation } from './postural';
 import { Bioimpedance } from './bioimpedance';
 import { Exercise } from './exercise';
 import { Routine, RoutineItem } from './routine';
+import { Appointment } from './appointment';
+import { PackagePlan } from './package';
 
 export interface BackupMetadata {
   version: '1.0.0';
@@ -31,6 +33,8 @@ export interface BackupMetadata {
     exercises: number;
     routines: number;
     routine_items: number;
+    appointments?: number;
+    package_plans?: number;
   };
 }
 
@@ -42,6 +46,8 @@ export interface BackupData {
   exercises: Exercise[];
   routines: Routine[];
   routine_items: RoutineItem[];
+  appointments?: Appointment[];
+  package_plans?: PackagePlan[];
 }
 
 export interface EspacoMulherBackupV1 {

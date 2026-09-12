@@ -47,7 +47,11 @@ import { checkForUpdates, getCurrentAppVersion, UpdateCheckResult } from '../../
 import { getDatabase } from '../../database';
 import { usePatients } from '../patients/PatientContext';
 
-export function SettingsScreen() {
+export interface SettingsScreenProps {
+  onClose?: () => void;
+}
+
+export function SettingsScreen({ onClose }: SettingsScreenProps = {}) {
   const { refreshPatients, totalCount } = usePatients();
 
   // Loading States
@@ -190,6 +194,23 @@ export function SettingsScreen() {
     <LargeTitleLayout
       title="Ajustes"
       subtitle={`${CLINIC_IDENTITY.clinicName} • Configurações`}
+      rightAction={
+        onClose ? (
+          <TouchableOpacity
+            onPress={() => {
+              Haptics.selection();
+              onClose();
+            }}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            accessibilityRole="button"
+            accessibilityLabel="Fechar ajustes"
+          >
+            <Text style={{ ...Typography.headline, color: Colors.primary, fontWeight: '600' }}>
+              OK
+            </Text>
+          </TouchableOpacity>
+        ) : undefined
+      }
     >
       <InsetGroupedList scrollable={false}>
         {/* 1. Backup Local */}

@@ -85,7 +85,7 @@ npm run web
 
 O projeto adota uma estratégia rigorosa de garantia de qualidade baseada em **Category-Partition**, **Boundary Value Analysis (BVA)** e **Adversarial Stress Testing**, validando de ponta a ponta todas as regras de negócio, cálculos biométricos, transações de banco de dados e resiliência a falhas.
 
-### Execução Completa da Suíte de Testes (289 testes)
+### Execução Completa da Suíte de Testes (364 testes)
 ```bash
 npm test
 ```
@@ -97,20 +97,38 @@ npx tsc --noEmit
 
 ### Execução de Suítes Específicas
 
-#### 1. Módulo de Avaliação e Bioimpedância
+#### 1. Módulo de Agenda Clínica e Agendamento
+Valida agendamento de atendimentos, detecção matemática de conflitos/sobreposições de horário, transições de status (`scheduled`, `attended`, `absent`, `cancelled`, `rescheduled`), cálculo em tempo real de paciente atual e próximo (`getCurrentAndNext`), estatísticas de comparecimento e links seguros de WhatsApp:
+```bash
+node --test tests/m7_agenda_appointments.test.js
+```
+
+#### 2. Módulo de Pacotes de Sessões e Regressão de Backup
+Valida ciclo de vida dos pacotes, dedução e consumo atômico de sessões ao marcar presença em transações SQLite, alerta visual de renovação quando `total - completed <= 1`, exportação/restauração das 9 tabelas do schema V2 e rejeição adversarial de dados corrompidos ou maliciosos (`\0`):
+```bash
+node --test tests/m7_packages_flow.test.js
+```
+
+#### 3. Módulo de Navegação 4-Tabs e Interface Agenda/Pacotes
+Valida arquitetura de 4 abas oficiais (`Agenda`, `Pacientes`, `Treinos`, `Relatórios`), controles segmentados, sheet modal de configurações e ergonomia Apple HIG:
+```bash
+node --test tests/m8_agenda_packages_navigation.test.js
+```
+
+#### 4. Módulo de Avaliação e Bioimpedância
 Valida cálculos de IMC (ABESO/OMS) e TMB (Mifflin-St Jeor / Harris-Benedict) em valores de borda, histórico temporal no SQLite e laudo clínico com assinatura da Dra. Rogéria Collares:
 ```bash
 node --test tests/m4_evaluation_flow.test.js
 ```
 
-#### 2. Prescrição de Treinos e Exercícios Dinâmicos
+#### 5. Prescrição de Treinos e Exercícios Dinâmicos
 Valida criação dinâmica de exercícios com `is_custom = 1`, catálogo imediato, montagem de rotinas com molas calibradas e atomicidade de rollback transacional:
 ```bash
 node --test tests/m5_workout_routines.test.js
 ```
 
-#### 3. Motor de Backup e Atualizações Offline
-Valida exportação JSON das 7 tabelas relacionais, rejeição de backups corrompidos, dry-run referencial, rollback em falha de disco e degradação silenciosa em modo offline:
+#### 6. Motor de Backup e Atualizações Offline
+Valida exportação JSON das tabelas relacionais, rejeição de backups corrompidos, dry-run referencial, rollback em falha de disco e degradação silenciosa em modo offline:
 ```bash
 node --test tests/m6_backup_updates.test.js
 ```
@@ -130,8 +148,11 @@ node --test tests/m6_backup_updates.test.js
 | **M5 Security & Data Privacy** | `tests/m5_security_audit.test.js` | 17 | Zero vazamento em nuvem, ausência de CPF/CEP, higienização de dados |
 | **M5 Workout Routines** | `tests/m5_workout_routines.test.js` | 13 | Exercícios dinâmicos (`is_custom=1`), rotinas, séries, molas e rollback |
 | **M6 Backup & Updates** | `tests/m6_backup_updates.test.js` | 17 | Exportação 7 tabelas, integridade referencial, rollback e modo offline |
+| **M7 Agenda & Appointments** | `tests/m7_agenda_appointments.test.js` | 34 | Agendamento, conflitos de horário, status, paciente atual/próximo, WhatsApp URLs |
+| **M7 Session Packages & Backup** | `tests/m7_packages_flow.test.js` | 27 | Consumo atômico em SQLite, alerta renovação (<=1), backup 9 tabelas, rejeição maliciosa |
+| **M8 4-Tab Navigation & UI** | `tests/m8_agenda_packages_navigation.test.js` | 14 | 4 tabs oficiais, telas Agenda e Pacotes, HIG squircle, haptics e privacidade |
 | **Tiers 1, 2 e 5 Adicionais** | `tests/tier*` | 28 | Casos de borda de componentes de UI, botões e controles segmentados |
-| **Total Aprovado** | **19 suítes** | **289** | **100% de Aprovação (`exit code 0`)** |
+| **Total Aprovado** | **22 suítes** | **364** | **100% de Aprovação (`exit code 0`)** |
 
 ---
 
@@ -140,3 +161,4 @@ node --test tests/m6_backup_updates.test.js
 - **Ausência de CPF, CEP e Estado Civil:** Por diretriz deliberada da clínica, estes dados sensíveis não são solicitados nem persistidos no banco de dados.
 - **Armazenamento 100% Local:** Os prontuários e históricos das pacientes residem no armazenamento seguro do dispositivo (`SQLite`), sem dependência de nuvem pública.
 - **Assinatura e Validação:** Todos os laudos emitidos possuem validade sob o registro profissional da Dra. Rogéria Collares (CREFITO 23093-F).
+

@@ -27,7 +27,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Typography, Spacing, Radii, Shadows } from '../../design-system/tokens';
 import { Haptics } from '../../design-system/Haptics';
-import { formatPhone, formatDateBR, calculateAge } from '../../utils/formatters';
+import { formatPhone, formatDateBR, calculateAge, formatWhatsAppDeepLink, formatWhatsAppUrl } from '../../utils/formatters';
 import { Patient } from '../../types/patient';
 import { PatientStatusBadge, PatientInsuranceBadge } from './PatientStatusBadge';
 import { PatientQuickActions } from './PatientQuickActions';
@@ -81,10 +81,8 @@ export function PatientCard({
 
   const handleWhatsAppPress = async () => {
     Haptics.selection();
-    const rawDigits = patient.phone.replace(/\D/g, '');
-    const phoneWithCountry = rawDigits.startsWith('55') ? rawDigits : `55${rawDigits}`;
-    const url = `whatsapp://send?phone=${phoneWithCountry}`;
-    const webUrl = `https://wa.me/${phoneWithCountry}`;
+    const url = formatWhatsAppDeepLink(patient.phone);
+    const webUrl = formatWhatsAppUrl(patient.phone);
 
     try {
       const canOpen = await Linking.canOpenURL(url);

@@ -194,3 +194,54 @@ export const SCHEMA_V1_INDICES = `
 
   CREATE INDEX IF NOT EXISTS idx_routine_items_routine ON routine_items(routine_id, sort_order ASC);
 `;
+
+export const SCHEMA_V2_TABLES = {
+  appointments: `
+    CREATE TABLE IF NOT EXISTS appointments (
+      id TEXT PRIMARY KEY NOT NULL,
+      patient_id TEXT NOT NULL,
+      patient_name TEXT NOT NULL,
+      date TEXT NOT NULL,
+      start_time TEXT NOT NULL,
+      end_time TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'scheduled' CHECK(status IN ('scheduled', 'attended', 'cancelled', 'absent', 'rescheduled')),
+      type TEXT NOT NULL DEFAULT 'pilates_individual' CHECK(type IN ('pilates_individual', 'pilates_group', 'clinical_evaluation', 'rehabilitation')),
+      notes TEXT,
+      created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+      updated_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+      FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE
+    );
+  `,
+
+  package_plans: `
+    CREATE TABLE IF NOT EXISTS package_plans (
+      id TEXT PRIMARY KEY NOT NULL,
+      patient_id TEXT NOT NULL,
+      total_sessions INTEGER NOT NULL CHECK(total_sessions > 0),
+      completed_sessions INTEGER NOT NULL DEFAULT 0 CHECK(completed_sessions >= 0),
+      start_date TEXT NOT NULL,
+      expiration_date TEXT,
+      status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active', 'completed', 'expired')),
+      price_cents INTEGER,
+      notes TEXT,
+      created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+      updated_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+      FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE
+    );
+  `,
+};
+
+export const SCHEMA_V2_DDL = `
+  ${SCHEMA_V2_TABLES.appointments}
+  ${SCHEMA_V2_TABLES.package_plans}
+`;
+
+export const SCHEMA_V2_INDICES = `
+  CREATE INDEX IF NOT EXISTS idx_appointments_date_time ON appointments(date, start_time ASC);
+  CREATE INDEX IF NOT EXISTS idx_appointments_patient_id ON appointments(patient_id);
+  CREATE INDEX IF NOT EXISTS idx_appointments_status ON appointments(status);
+
+  CREATE INDEX IF NOT EXISTS idx_package_plans_patient_status ON package_plans(patient_id, status);
+  CREATE INDEX IF NOT EXISTS idx_package_plans_patient_id ON package_plans(patient_id);
+`;
+

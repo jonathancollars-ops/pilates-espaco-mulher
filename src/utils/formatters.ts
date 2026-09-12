@@ -33,16 +33,47 @@ export function cleanDigits(raw: string | null | undefined): string {
 }
 
 /**
- * Generates a direct WhatsApp link with optional pre-filled message.
+ * Generates a direct WhatsApp web/universal link with optional pre-filled message.
  */
 export function formatWhatsAppUrl(phone: string, message?: string): string {
   const digits = cleanDigits(phone);
   const fullNumber = digits.startsWith('55') ? digits : `55${digits}`;
-  const baseUrl = `https://wa.me/${fullNumber}`;
+  const baseUrl = `https://wa.me/${encodeURIComponent(fullNumber)}`;
   if (message) {
     return `${baseUrl}?text=${encodeURIComponent(message)}`;
   }
   return baseUrl;
+}
+
+/**
+ * Generates a direct WhatsApp deep link (whatsapp://send) with safe URL parameter encoding.
+ * Protects against parameter injection by strictly encoding phone digits and message text.
+ */
+export function formatWhatsAppDeepLink(phone: string, message?: string): string {
+  const digits = cleanDigits(phone);
+  const fullNumber = digits.startsWith('55') ? digits : `55${digits}`;
+  const safePhone = encodeURIComponent(fullNumber);
+  if (message) {
+    return `whatsapp://send?phone=${safePhone}&text=${encodeURIComponent(message)}`;
+  }
+  return `whatsapp://send?phone=${safePhone}`;
+}
+
+/**
+ * Generates safe WhatsApp links for appointment confirmation / reminder.
+ */
+export function formatAppointmentConfirmationWhatsApp(
+  patientName: string,
+  dateBR: string,
+  startTime: string,
+  phone: string
+): { deepLink: string; webUrl: string } {
+  const safeName = (patientName || 'Paciente').trim();
+  const text = `Olá, ${safeName}! Confirmamos seu atendimento de Pilates no Pilates Espaço Mulher no dia ${dateBR} às ${startTime}. Qualquer dúvida estamos à disposição!`;
+  return {
+    deepLink: formatWhatsAppDeepLink(phone, text),
+    webUrl: formatWhatsAppUrl(phone, text),
+  };
 }
 
 /**
