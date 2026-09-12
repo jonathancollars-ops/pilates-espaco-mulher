@@ -12,6 +12,9 @@ on:
         default: 'true'
         type: boolean
 
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Compilar APK Android
@@ -46,16 +49,7 @@ jobs:
         run: npm run typecheck
 
       - name: ⚙️ Expo Prebuild (Gerar Projeto Android Nativo)
-        run: npx expo prebuild --platform android --clean
-
-      - name: 🔑 Gerar Keystore de Assinatura para Release
-        run: |
-          cd android/app
-          keytool -genkey -v -keystore release.keystore -alias espacomulher -keyalg RSA -keysize 2048 -validity 10000 -storepass espacomulher2026 -keypass espacomulher2026 -dname "CN=Dra. Rogeria Collares, OU=Pilates Espaco Mulher, O=Pilates Espaco Mulher, L=Rio das Ostras, ST=RJ, C=BR"
-          
-          # Injetar configuração de assinatura no build.gradle
-          sed -i '/signingConfigs {/a \        release {\n            storeFile file("release.keystore")\n            storePassword "espacomulher2026"\n            keyAlias "espacomulher"\n            keyPassword "espacomulher2026"\n        }' build.gradle
-          sed -i 's/signingConfig signingConfigs.debug/signingConfig signingConfigs.release/g' build.gradle
+        run: npx expo prebuild --platform android --clean --no-install
 
       - name: 🔨 Compilar APK Release (Gradle)
         run: |
@@ -63,10 +57,10 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleRelease --no-daemon
 
-      - name: 🏷️ Renomear APK Final
+      - name: 🏷️ Organizar APK para Publicação
         run: |
           mkdir -p build-output
-          cp android/app/build/outputs/apk/release/app-release.apk build-output/Pilates-Espaco-Mulher-v1.0.0.apk || cp android/app/build/outputs/apk/*/*/*.apk build-output/Pilates-Espaco-Mulher.apk
+          find android/app/build/outputs/apk -name "*.apk" -exec cp {} build-output/Pilates-Espaco-Mulher-v1.0.0.apk \;
 
       - name: 📤 Fazer Upload do APK como Artefato da Build
         uses: actions/upload-artifact@v4
@@ -80,7 +74,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           name: "Pilates Espaço Mulher v1.0.0"
-          tag_name: "v1.0.0-${{ github.run_number }}"
+          tag_name: "v1.0.0-build${{ github.run_number }}"
           body: |
             ## 🌸 Pilates Espaço Mulher — Dra. Rogéria Collares (CREFITO 23093-F)
             ### Versão Oficial v1.0.0 (Build #${{ github.run_number }})
