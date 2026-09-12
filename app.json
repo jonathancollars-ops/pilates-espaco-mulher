@@ -24,7 +24,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#9B6CBA"
+        "backgroundColor": "#FAF8F5"
       },
       "package": "com.espacomulher.pilates",
       "permissions": [

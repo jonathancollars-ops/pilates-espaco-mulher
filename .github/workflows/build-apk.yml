@@ -1,0 +1,101 @@
+﻿name: Build Android APK
+
+on:
+  push:
+    branches: [ master, main ]
+    tags: [ 'v*' ]
+  workflow_dispatch:
+    inputs:
+      create_release:
+        description: 'Criar uma release no GitHub com o APK anexado?'
+        required: false
+        default: 'true'
+        type: boolean
+
+jobs:
+  build:
+    name: Compilar APK Android
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Clonar Repositório
+        uses: actions/checkout@v4
+
+      - name: 🟢 Configurar Node.js (v20)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: ☕ Configurar Java JDK (17)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: 🤖 Configurar Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: 📦 Instalar Dependências
+        run: npm install
+
+      - name: 🧪 Executar Testes Automatizados (364 testes)
+        run: npm test
+
+      - name: 🔍 Verificação de Tipos TypeScript (Strict)
+        run: npm run typecheck
+
+      - name: ⚙️ Expo Prebuild (Gerar Projeto Android Nativo)
+        run: npx expo prebuild --platform android --clean
+
+      - name: 🔑 Gerar Keystore de Assinatura para Release
+        run: |
+          cd android/app
+          keytool -genkey -v -keystore release.keystore -alias espacomulher -keyalg RSA -keysize 2048 -validity 10000 -storepass espacomulher2026 -keypass espacomulher2026 -dname "CN=Dra. Rogeria Collares, OU=Pilates Espaco Mulher, O=Pilates Espaco Mulher, L=Rio das Ostras, ST=RJ, C=BR"
+          
+          # Injetar configuração de assinatura no build.gradle
+          sed -i '/signingConfigs {/a \        release {\n            storeFile file("release.keystore")\n            storePassword "espacomulher2026"\n            keyAlias "espacomulher"\n            keyPassword "espacomulher2026"\n        }' build.gradle
+          sed -i 's/signingConfig signingConfigs.debug/signingConfig signingConfigs.release/g' build.gradle
+
+      - name: 🔨 Compilar APK Release (Gradle)
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon
+
+      - name: 🏷️ Renomear APK Final
+        run: |
+          mkdir -p build-output
+          cp android/app/build/outputs/apk/release/app-release.apk build-output/Pilates-Espaco-Mulher-v1.0.0.apk || cp android/app/build/outputs/apk/*/*/*.apk build-output/Pilates-Espaco-Mulher.apk
+
+      - name: 📤 Fazer Upload do APK como Artefato da Build
+        uses: actions/upload-artifact@v4
+        with:
+          name: Pilates-Espaco-Mulher-APK
+          path: build-output/*.apk
+          retention-days: 30
+
+      - name: 🚀 Publicar Release no GitHub (com APK anexado)
+        if: startsWith(github.ref, 'refs/tags/') || github.event.inputs.create_release == 'true' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "Pilates Espaço Mulher v1.0.0"
+          tag_name: "v1.0.0-${{ github.run_number }}"
+          body: |
+            ## 🌸 Pilates Espaço Mulher — Dra. Rogéria Collares (CREFITO 23093-F)
+            ### Versão Oficial v1.0.0 (Build #${{ github.run_number }})
+            
+            Aplicativo mobile nativo para avaliação fisioterapêutica postural, bioimpedância, agenda e prescrição de Pilates.
+            
+            #### 📱 Destaques desta Versão:
+            - **📅 Agenda Integrada**: Linha do tempo diária, visão mensal, card do paciente atual & próximo e confirmação rápida via WhatsApp.
+            - **👥 Prontuário Clínico**: Cadastro sem CPF/CEP, anamnese completa, avaliação postural, bioimpedância e laudo PDF A4 assinado.
+            - **🧘 Prescrição de Pilates**: 49 exercícios clássicos e clínicos + criação dinâmica de novos exercícios.
+            - **📊 Sessões & Pacotes**: Contador de sessões concluídas e alerta visual de renovação de planos.
+            - **🔒 100% Local-First**: Zero banco de dados externo, sem tela de login, backup/restore em JSON.
+            
+            #### 📥 Download do APK:
+            Baixe o arquivo **`Pilates-Espaco-Mulher-v1.0.0.apk`** abaixo e instale diretamente no seu dispositivo Android.
+          files: build-output/*.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
