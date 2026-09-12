@@ -3,40 +3,41 @@
  * Dra. Rogéria Collares (CREFITO 23093-F)
  * 
  * Apple Human Interface Guidelines (HIG) Bottom Tab Navigation
- * with 5 core clinical tabs, collapsible Large Titles, Inset Grouped Lists,
- * Segmented Controls, and Haptic feedback.
+ * with core clinical tabs (Pacientes, Treinos, Aparelhos, Relatórios, Ajustes),
+ * deep Stack navigation (EvaluationWizard, RoutineManager), collapsible Large Titles,
+ * Inset Grouped Lists, and Haptic feedback.
  */
 
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  TextInput,
   Platform,
   Alert,
 } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import {
   Colors,
   Typography,
   Spacing,
-  Radii,
   LargeTitleLayout,
   Haptics,
   InsetGroupedList,
   InsetGroup,
   InsetRow,
-  SegmentedControl,
-  Button,
-  Badge,
   Card,
   ClinicIdentity,
-  CLINIC_IDENTITY,
 } from '../design-system';
 import { PatientsDashboardScreen } from '../features/patients';
+import { EvaluationWizardScreen } from '../features/evaluation';
+import { RoutineManagerScreen } from '../features/routines';
+import { SettingsScreen } from '../features/settings';
+import { generateClinicalReportPdf } from '../services/pdfService';
+import { usePatients } from '../features/patients/PatientContext';
 
 export type RootTabParamList = {
   Pacientes: undefined;
@@ -46,115 +47,45 @@ export type RootTabParamList = {
   Ajustes: undefined;
 };
 
+export type RootStackParamList = {
+  MainTabs: undefined;
+  EvaluationWizard: { patientId: string };
+  RoutineManager: { patientId?: string };
+};
+
 const Tab = createBottomTabNavigator<RootTabParamList>();
+const Stack = createNativeStackNavigator<RootStackParamList>();
 
 // ---------------------------------------------------------------------------
-// Shell Screen 1: Pacientes (Patients Dashboard) — Milestone 3
+// Screen 1: Pacientes Tab (Wrapper with deep stack navigation)
 // ---------------------------------------------------------------------------
-export function PacientesScreen() {
-  return <PatientsDashboardScreen />;
-}
-
-// ---------------------------------------------------------------------------
-// Shell Screen 2: Treinos (Workouts)
-// ---------------------------------------------------------------------------
-function TreinosScreen() {
-  const [selectedTab, setSelectedTab] = useState(0);
-  const tabs = ['Rotinas Ativas', 'Histórico', 'Prescrever'] as const;
-
-  const handleStartSession = (patient: string) => {
-    Haptics.success();
-    Alert.alert('Sessão Iniciada', `Iniciando atendimento de ${patient}. Registro de execução e percepção de esforço no M5.`);
-  };
-
+function PacientesTabScreen({ navigation }: any) {
   return (
-    <LargeTitleLayout
-      title="Treinos"
-      subtitle="Prescrições Clínicas & Sessões"
-      rightAction={
-        <TouchableOpacity
-          onPress={() => {
-            Haptics.impactMedium();
-            Alert.alert('Nova Prescrição', 'Montagem personalizada de treino por aparelho no M5.');
-          }}
-          style={styles.headerIconButton}
-        >
-          <Ionicons name="create-outline" size={26} color={Colors.primary} />
-        </TouchableOpacity>
-      }
-    >
-      <View style={styles.segmentedWrapper}>
-        <SegmentedControl
-          values={tabs}
-          selectedIndex={selectedTab}
-          onChange={(index) => setSelectedTab(index)}
-        />
-      </View>
-
-      <InsetGroupedList scrollable={false}>
-        <InsetGroup
-          header="Rotinas Prescritas Recentes"
-          footer="Prescrições individualizadas com molas, repetições e orientações posturais."
-        >
-          <InsetRow
-            icon="fitness"
-            label="Mariana Silva"
-            subtitle="Foco: Descompressão lombar"
-            value="Reformer & Cadillac (50 min)"
-            onPress={() => handleStartSession('Mariana Silva')}
-          />
-          <InsetRow
-            icon="fitness"
-            label="Beatriz Costa"
-            subtitle="Foco: Simetria escapular"
-            value="Wunda Chair & Barrel (50 min)"
-            onPress={() => handleStartSession('Beatriz Costa')}
-          />
-          <InsetRow
-            icon="fitness"
-            label="Camila Santos"
-            subtitle="Foco: Ativação transverso"
-            value="Mat Pilates & Overball (45 min)"
-            onPress={() => handleStartSession('Camila Santos')}
-          />
-        </InsetGroup>
-
-        <InsetGroup header="Controle de Aula">
-          <InsetRow
-            icon="play-circle"
-            label="Iniciar Aula ao Vivo"
-            value="Cronômetro & EVA"
-            onPress={() => {
-              Haptics.success();
-              Alert.alert('Aula ao Vivo', 'Timer de sessão e feedback EVA no M5.');
-            }}
-          />
-          <InsetRow
-            icon="time"
-            label="Histórico de Sessões Concluídas"
-            value="142 aulas registradas"
-            onPress={() => {
-              Haptics.selection();
-              Alert.alert('Histórico', 'Histórico completo local no SQLite no M5.');
-            }}
-          />
-        </InsetGroup>
-      </InsetGroupedList>
-
-      <View style={styles.identityFooterContainer}>
-        <ClinicIdentity variant="footer" />
-      </View>
-    </LargeTitleLayout>
+    <PatientsDashboardScreen
+      onNavigateToEvaluation={(patientId: string) => {
+        navigation.navigate('EvaluationWizard', { patientId });
+      }}
+      onNavigateToWorkouts={(patientId: string) => {
+        navigation.navigate('RoutineManager', { patientId });
+      }}
+    />
   );
 }
 
 // ---------------------------------------------------------------------------
-// Shell Screen 3: Aparelhos (Apparatus)
+// Screen 2: Treinos Tab
+// ---------------------------------------------------------------------------
+function TreinosTabScreen({ route }: any) {
+  return <RoutineManagerScreen patientId={route.params?.patientId} />;
+}
+
+// ---------------------------------------------------------------------------
+// Screen 3: Aparelhos Tab
 // ---------------------------------------------------------------------------
 function AparelhosScreen() {
   const handleSelectApparatus = (name: string, count: number) => {
     Haptics.selection();
-    Alert.alert(name, `Catálogo clássico com ${count} exercícios cadastrados.\nNavegação e filtros disponíveis no M5.`);
+    Alert.alert(name, `Catálogo clássico com ${count} exercícios cadastrados.\nPrescrição individual disponível na aba Treinos.`);
   };
 
   return (
@@ -168,51 +99,51 @@ function AparelhosScreen() {
         style={styles.apparatusOverviewCard}
       >
         <Text style={styles.overviewBody}>
-          Catálogo estruturado com configurações de molas, alinhamento anatômico e variações para patologias de coluna e membros.
+          Catálogo estruturado com 49 exercícios distribuídos entre Reformer, Cadillac, Wunda Chair, Ladder Barrel, Solo/Mat e Cinesioterapia.
         </Text>
       </Card>
 
       <InsetGroupedList scrollable={false}>
         <InsetGroup
           header="Equipamentos Clássicos"
-          footer="Exercícios categorizados por nível de habilidade e restrições posturais."
+          footer="Exercícios pré-carregados e customizados com foco postural e molas."
         >
           <InsetRow
             icon="cube"
             label="Universal Reformer"
-            value="14 exercícios"
-            onPress={() => handleSelectApparatus('Universal Reformer', 14)}
+            value="8 exercícios clássicos"
+            onPress={() => handleSelectApparatus('Universal Reformer', 8)}
           />
           <InsetRow
             icon="bed"
             label="Cadillac / Trapeze Table"
-            value="12 exercícios"
-            onPress={() => handleSelectApparatus('Cadillac', 12)}
+            value="8 exercícios clássicos"
+            onPress={() => handleSelectApparatus('Cadillac', 8)}
           />
           <InsetRow
             icon="file-tray-stacked"
             label="Wunda Chair"
-            value="10 exercícios"
-            onPress={() => handleSelectApparatus('Wunda Chair', 10)}
+            value="7 exercícios clássicos"
+            onPress={() => handleSelectApparatus('Wunda Chair', 7)}
           />
           <InsetRow
             icon="git-commit"
             label="Ladder Barrel"
-            value="8 exercícios"
-            onPress={() => handleSelectApparatus('Ladder Barrel', 8)}
+            value="6 exercícios clássicos"
+            onPress={() => handleSelectApparatus('Ladder Barrel', 6)}
           />
           <InsetRow
             icon="body"
             label="Matwork / Solo"
-            value="16 exercícios"
-            onPress={() => handleSelectApparatus('Mat / Solo', 16)}
+            value="13 exercícios clássicos"
+            onPress={() => handleSelectApparatus('Mat / Solo', 13)}
           />
           <InsetRow
             icon="radio-button-on"
-            label="Pequenos Acessórios"
-            value="11 exercícios"
-            subtitle="Magic Circle, Faixas elásticas, Overball"
-            onPress={() => handleSelectApparatus('Pequenos Acessórios', 11)}
+            label="Cinesioterapia & Acessórios"
+            value="7 exercícios clássicos"
+            subtitle="Bola Suíça, Faixas, Overball, Magic Circle"
+            onPress={() => handleSelectApparatus('Cinesioterapia & Acessórios', 7)}
           />
         </InsetGroup>
       </InsetGroupedList>
@@ -225,22 +156,33 @@ function AparelhosScreen() {
 }
 
 // ---------------------------------------------------------------------------
-// Shell Screen 4: Relatórios (Reports)
+// Screen 4: Relatórios Tab
 // ---------------------------------------------------------------------------
 function RelatóriosScreen() {
-  const handleExportPdf = () => {
+  const { patients } = usePatients();
+
+  const handleExportPdf = async () => {
+    if (patients.length === 0) {
+      Alert.alert('Nenhum Paciente', 'Cadastre ao menos um paciente para emitir o relatório.');
+      return;
+    }
     Haptics.success();
-    Alert.alert(
-      'Exportar Relatório Clínico',
-      'Gerando modelo HTML5 A4 profissional com assinatura digital da Dra. Rogéria Collares via expo-print (M6).'
-    );
+    try {
+      const firstPatient = patients[0];
+      await generateClinicalReportPdf(firstPatient, null, null, null, {
+        share: true,
+        dialogTitle: `Relatório Clínico - ${firstPatient.name}`,
+      });
+    } catch (err: any) {
+      Alert.alert('Erro ao Gerar PDF', err?.message || 'Falha ao emitir relatório.');
+    }
   };
 
   const handleShareWhatsApp = () => {
     Haptics.success();
     Alert.alert(
       'Compartilhar via WhatsApp',
-      'Link direto wa.me com resumo clínico formatado e anexo PDF da evolução (M6).'
+      'Abra a Ficha Clínica de qualquer paciente na aba Pacientes para exportar o PDF e enviar pelo WhatsApp.'
     );
   };
 
@@ -275,7 +217,7 @@ function RelatóriosScreen() {
             value="Massa Magra & % Gordura"
             onPress={() => {
               Haptics.selection();
-              Alert.alert('Evolução Gráfica', 'Curvas de evolução temporal Bezier SVG disponíveis no M4.');
+              Alert.alert('Evolução Gráfica', 'Acesse a aba Bioimpedância na Ficha Clínica do paciente para acompanhar o histórico.');
             }}
           />
           <InsetRow
@@ -295,92 +237,16 @@ function RelatóriosScreen() {
 }
 
 // ---------------------------------------------------------------------------
-// Shell Screen 5: Ajustes (Settings)
+// Screen 5: Ajustes Tab
 // ---------------------------------------------------------------------------
-function AjustesScreen() {
-  const [syncing, setSyncing] = useState(false);
-
-  const handleSyncNow = () => {
-    Haptics.impactLight();
-    setSyncing(true);
-    setTimeout(() => {
-      setSyncing(false);
-      Haptics.success();
-      Alert.alert(
-        'Sincronização Concluída',
-        'Todos os dados locais do SQLite foram consolidados com a nuvem Firebase espacomulher-84137 com 0 ouvintes persistentes.'
-      );
-    }, 1200);
-  };
-
-  return (
-    <LargeTitleLayout
-      title="Ajustes"
-      subtitle="Clínica & Sincronização"
-    >
-      <InsetGroupedList scrollable={false}>
-        <InsetGroup
-          header="Sincronização & Nuvem (Firebase Spark)"
-          footer="Proteção estrita da cota gratuita: 0 ouvintes em tempo real e sincronização consolidada por demanda."
-        >
-          <InsetRow
-            icon="cloud-done"
-            label="Status da Nuvem"
-            value={syncing ? 'Sincronizando...' : '🟢 Tudo sincronizado'}
-            accessory={<Badge label="Spark Seguro" variant="success" styleType="subtle" size="sm" />}
-          />
-          <InsetRow
-            icon="sync"
-            label="Sincronizar Agora"
-            value="Consolidar Documentos"
-            onPress={handleSyncNow}
-          />
-          <InsetRow
-            icon="server"
-            label="Banco de Dados Local"
-            value="SQLite (WAL Mode Ativo)"
-          />
-        </InsetGroup>
-
-        <InsetGroup header="Identidade Profissional da Clínica">
-          <InsetRow
-            icon="medkit"
-            label="Responsável Técnica"
-            value={CLINIC_IDENTITY.professionalName}
-          />
-          <InsetRow
-            icon="card"
-            label="Registro Profissional"
-            value={CLINIC_IDENTITY.crefito}
-          />
-          <InsetRow
-            icon="location"
-            label="Localização"
-            value={CLINIC_IDENTITY.location}
-          />
-          <InsetRow
-            icon="call"
-            label="Contato WhatsApp"
-            value={CLINIC_IDENTITY.phone}
-          />
-        </InsetGroup>
-      </InsetGroupedList>
-
-      <View style={styles.identityHeaderContainer}>
-        <ClinicIdentity variant="header" />
-      </View>
-
-      <View style={styles.identityFooterContainer}>
-        <ClinicIdentity variant="footer" />
-      </View>
-    </LargeTitleLayout>
-  );
+function AjustesTabScreen() {
+  return <SettingsScreen />;
 }
 
 // ---------------------------------------------------------------------------
-// Root Bottom Tab Navigator
+// Main Bottom Tabs Navigator
 // ---------------------------------------------------------------------------
-export function RootNavigator() {
+function MainTabsNavigator() {
   return (
     <Tab.Navigator
       initialRouteName="Pacientes"
@@ -425,43 +291,54 @@ export function RootNavigator() {
         },
       }}
     >
-      <Tab.Screen name="Pacientes" component={PacientesScreen} />
-      <Tab.Screen name="Treinos" component={TreinosScreen} />
+      <Tab.Screen name="Pacientes" component={PacientesTabScreen} />
+      <Tab.Screen name="Treinos" component={TreinosTabScreen} />
       <Tab.Screen name="Aparelhos" component={AparelhosScreen} />
       <Tab.Screen name="Relatórios" component={RelatóriosScreen} />
-      <Tab.Screen name="Ajustes" component={AjustesScreen} />
+      <Tab.Screen name="Ajustes" component={AjustesTabScreen} />
     </Tab.Navigator>
   );
 }
 
+// ---------------------------------------------------------------------------
+// Root Stack Navigator (Zero Login direct launch into MainTabs)
+// ---------------------------------------------------------------------------
+export function RootNavigator() {
+  return (
+    <Stack.Navigator
+      initialRouteName="MainTabs"
+      screenOptions={{
+        headerShown: false,
+        animation: 'slide_from_right',
+      }}
+    >
+      <Stack.Screen name="MainTabs" component={MainTabsNavigator} />
+      <Stack.Screen
+        name="EvaluationWizard"
+        component={({ route, navigation }: any) => (
+          <EvaluationWizardScreen
+            patientId={route.params?.patientId}
+            onGoBack={() => navigation.goBack()}
+            onNavigateToWorkouts={(patientId) =>
+              navigation.navigate('RoutineManager', { patientId })
+            }
+          />
+        )}
+      />
+      <Stack.Screen
+        name="RoutineManager"
+        component={({ route, navigation }: any) => (
+          <RoutineManagerScreen
+            patientId={route.params?.patientId}
+            onGoBack={() => navigation.goBack()}
+          />
+        )}
+      />
+    </Stack.Navigator>
+  );
+}
+
 const styles = StyleSheet.create({
-  headerIconButton: {
-    padding: Spacing.xs,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.surfaceSecondary,
-    borderRadius: Radii.md,
-    paddingHorizontal: Spacing.md,
-    height: 38,
-    marginBottom: Spacing.md,
-    marginTop: Spacing.xs,
-  },
-  searchIcon: {
-    marginRight: Spacing.sm,
-  },
-  searchInput: {
-    flex: 1,
-    ...Typography.subhead,
-    color: Colors.text,
-    paddingVertical: 0,
-  },
-  segmentedWrapper: {
-    marginBottom: Spacing.base,
-  },
   apparatusOverviewCard: {
     marginBottom: Spacing.base,
     marginHorizontal: Spacing.base,
@@ -469,10 +346,6 @@ const styles = StyleSheet.create({
   overviewBody: {
     ...Typography.callout,
     color: Colors.textSecondary,
-  },
-  identityHeaderContainer: {
-    marginHorizontal: Spacing.base,
-    marginTop: Spacing.base,
   },
   identityFooterContainer: {
     marginTop: Spacing.lg,

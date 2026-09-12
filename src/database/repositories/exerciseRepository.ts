@@ -32,6 +32,16 @@ function generateId(): string {
 
 export const exerciseRepository = {
   /**
+   * Specifically creates a clinician custom exercise, strictly saving with is_custom = 1.
+   */
+  async createCustomExercise(
+    data: CreateExerciseInput,
+    explicitDb?: SQLiteDatabase
+  ): Promise<Exercise> {
+    return this.create({ ...data, is_custom: 1 }, explicitDb);
+  },
+
+  /**
    * Dynamically creates a new exercise.
    * By default, marks is_custom = 1 (created at runtime by the clinician).
    */

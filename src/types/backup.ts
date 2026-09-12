@@ -34,15 +34,17 @@ export interface BackupMetadata {
   };
 }
 
+export interface BackupData {
+  patients: Patient[];
+  anamnesis: Anamnesis[];
+  postural_evaluations: PosturalEvaluation[];
+  bioimpedance: Bioimpedance[];
+  exercises: Exercise[];
+  routines: Routine[];
+  routine_items: RoutineItem[];
+}
+
 export interface EspacoMulherBackupV1 {
   metadata: BackupMetadata;
-  data: {
-    patients: Patient[];
-    anamnesis: Anamnesis[];
-    postural_evaluations: PosturalEvaluation[];
-    bioimpedance: Bioimpedance[];
-    exercises: Exercise[];
-    routines: Routine[];
-    routine_items: RoutineItem[];
-  };
+  data: BackupData;
 }

@@ -21,9 +21,42 @@ web-build/
 
 # Environment variables & secrets
 .env
+.env*
 .env.local
 .env.*.local
 *.pem
+*.key
+*.p12
+*.p8
+*.keystore
+*.jks
+*.mobileprovision
+*.cert
+*.cer
+*.der
+
+# Local builds & native binaries
+build/
+*.apk
+*.aab
+*.ipa
+*.xcarchive
+*.orig.*
+
+# SQLite databases & temp storage (Strict Data Privacy)
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+backup_espaco_mulher_*.json
+backup*.json
+
+# Temporary files & caches
+*.tmp
+*.temp
+.cache/
 
 # Operating System Files
 .DS_Store

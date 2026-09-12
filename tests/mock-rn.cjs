@@ -9,6 +9,9 @@ const mockStatusBarPath = path.resolve(__dirname, 'mocks', 'status-bar.cjs');
 const mockFileSystemPath = path.resolve(__dirname, 'mocks', 'expo-file-system.cjs');
 const mockSharingPath = path.resolve(__dirname, 'mocks', 'expo-sharing.cjs');
 const mockSqlitePath = path.resolve(__dirname, 'mocks', 'expo-sqlite.cjs');
+const mockPrintPath = path.resolve(__dirname, 'mocks', 'expo-print.cjs');
+const mockUpdatesPath = path.resolve(__dirname, 'mocks', 'expo-updates.cjs');
+const mockConstantsPath = path.resolve(__dirname, 'mocks', 'expo-constants.cjs');
 
 const origResolve = Module._resolveFilename;
 Module._resolveFilename = function (request, parent, isMain, options) {
@@ -35,6 +38,15 @@ Module._resolveFilename = function (request, parent, isMain, options) {
   }
   if (request === 'expo-sqlite') {
     return mockSqlitePath;
+  }
+  if (request === 'expo-print') {
+    return mockPrintPath;
+  }
+  if (request === 'expo-updates') {
+    return mockUpdatesPath;
+  }
+  if (request === 'expo-constants') {
+    return mockConstantsPath;
   }
   return origResolve.call(this, request, parent, isMain, options);
 };

@@ -193,7 +193,7 @@ export const routineRepository = {
   },
 
   /**
-   * Updates routine header.
+   * Updates routine header and optionally its prescribed items inside an atomic transaction.
    */
   async update(
     id: string,
@@ -205,29 +205,61 @@ export const routineRepository = {
     if (!existing) return null;
 
     const now = new Date().toISOString();
-    const updated: Routine = {
-      ...existing,
-      name: data.name !== undefined ? data.name.trim() : existing.name,
-      notes: data.notes !== undefined ? data.notes : existing.notes,
-      status: data.status !== undefined ? data.status : existing.status,
-      updated_at: now,
-    };
+    await db.withTransactionAsync(async () => {
+      const updatedName = data.name !== undefined ? data.name.trim() : existing.name;
+      const updatedNotes = data.notes !== undefined ? data.notes : existing.notes;
+      const updatedStatus = data.status !== undefined ? data.status : existing.status;
 
-    await db.runAsync(
-      'UPDATE routines SET name = ?, notes = ?, status = ?, updated_at = ? WHERE id = ?;',
-      [updated.name, updated.notes ?? null, updated.status, updated.updated_at, id]
-    );
+      await db.runAsync(
+        'UPDATE routines SET name = ?, notes = ?, status = ?, updated_at = ? WHERE id = ?;',
+        [updatedName, updatedNotes ?? null, updatedStatus, now, id]
+      );
 
-    return (await this.findById(id, db))!;
+      // If items replacement is passed in the update payload, replace atomically
+      if (data.items !== undefined) {
+        await db.runAsync('DELETE FROM routine_items WHERE routine_id = ?;', [id]);
+        for (let i = 0; i < data.items.length; i++) {
+          const item = data.items[i];
+          const itemId = item.id || generateId();
+          const sortOrder = item.sort_order !== undefined ? item.sort_order : i;
+
+          await db.runAsync(
+            `INSERT INTO routine_items (
+              id, routine_id, exercise_id, sets, reps, springs_resistance,
+              postural_notes, sort_order, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+            [
+              itemId,
+              id,
+              item.exercise_id,
+              item.sets ?? 1,
+              item.reps ?? '10',
+              item.springs_resistance ?? null,
+              item.postural_notes ?? null,
+              sortOrder,
+              now,
+              now,
+            ]
+          );
+        }
+      }
+    });
+
+    return await this.findById(id, db);
   },
 
   /**
-   * Deletes a routine. Cascades to routine_items automatically.
+   * Deletes a routine and its exercise items inside an atomic transaction.
    */
   async delete(id: string, explicitDb?: SQLiteDatabase): Promise<boolean> {
     const db = explicitDb ?? (await getDatabase());
-    const result = await db.runAsync('DELETE FROM routines WHERE id = ?;', [id]);
-    return result.changes > 0;
+    let deleted = false;
+    await db.withTransactionAsync(async () => {
+      await db.runAsync('DELETE FROM routine_items WHERE routine_id = ?;', [id]);
+      const result = await db.runAsync('DELETE FROM routines WHERE id = ?;', [id]);
+      deleted = result.changes > 0;
+    });
+    return deleted;
   },
 
   /**
@@ -243,32 +275,34 @@ export const routineRepository = {
     const now = new Date().toISOString();
 
     let sortOrder = item.sort_order;
-    if (sortOrder === undefined) {
-      const maxOrderRow = await db.getFirstAsync<{ maxOrder: number }>(
-        'SELECT COALESCE(MAX(sort_order), -1) as maxOrder FROM routine_items WHERE routine_id = ?;',
-        [routineId]
-      );
-      sortOrder = (maxOrderRow?.maxOrder ?? -1) + 1;
-    }
+    await db.withTransactionAsync(async () => {
+      if (sortOrder === undefined) {
+        const maxOrderRow = await db.getFirstAsync<{ maxOrder: number }>(
+          'SELECT COALESCE(MAX(sort_order), -1) as maxOrder FROM routine_items WHERE routine_id = ?;',
+          [routineId]
+        );
+        sortOrder = (maxOrderRow?.maxOrder ?? -1) + 1;
+      }
 
-    await db.runAsync(
-      `INSERT INTO routine_items (
-        id, routine_id, exercise_id, sets, reps, springs_resistance,
-        postural_notes, sort_order, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
-      [
-        itemId,
-        routineId,
-        item.exercise_id,
-        item.sets ?? 1,
-        item.reps ?? '10',
-        item.springs_resistance ?? null,
-        item.postural_notes ?? null,
-        sortOrder,
-        now,
-        now,
-      ]
-    );
+      await db.runAsync(
+        `INSERT INTO routine_items (
+          id, routine_id, exercise_id, sets, reps, springs_resistance,
+          postural_notes, sort_order, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+        [
+          itemId,
+          routineId,
+          item.exercise_id,
+          item.sets ?? 1,
+          item.reps ?? '10',
+          item.springs_resistance ?? null,
+          item.postural_notes ?? null,
+          sortOrder,
+          now,
+          now,
+        ]
+      );
+    });
 
     return {
       id: itemId,
@@ -278,7 +312,7 @@ export const routineRepository = {
       reps: item.reps ?? '10',
       springs_resistance: item.springs_resistance ?? null,
       postural_notes: item.postural_notes ?? null,
-      sort_order: sortOrder,
+      sort_order: sortOrder ?? 0,
       created_at: now,
       updated_at: now,
     };
@@ -325,17 +359,25 @@ export const routineRepository = {
     params.push(itemId);
 
     const sql = `UPDATE routine_items SET ${fields.join(', ')} WHERE id = ?;`;
-    const res = await db.runAsync(sql, params);
-    return res.changes > 0;
+    let updated = false;
+    await db.withTransactionAsync(async () => {
+      const res = await db.runAsync(sql, params);
+      updated = res.changes > 0;
+    });
+    return updated;
   },
 
   /**
-   * Removes an individual item from a routine.
+   * Removes an individual item from a routine inside an atomic transaction.
    */
   async removeItem(itemId: string, explicitDb?: SQLiteDatabase): Promise<boolean> {
     const db = explicitDb ?? (await getDatabase());
-    const res = await db.runAsync('DELETE FROM routine_items WHERE id = ?;', [itemId]);
-    return res.changes > 0;
+    let removed = false;
+    await db.withTransactionAsync(async () => {
+      const res = await db.runAsync('DELETE FROM routine_items WHERE id = ?;', [itemId]);
+      removed = res.changes > 0;
+    });
+    return removed;
   },
 
   /**

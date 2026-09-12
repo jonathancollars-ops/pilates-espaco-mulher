@@ -58,6 +58,7 @@ export interface UpdateRoutineInput {
   name?: string;
   notes?: string | null;
   status?: RoutineStatus;
+  items?: CreateRoutineItemInput[];
 }
 
 export type UpdateRoutineItemInput = Partial<Omit<CreateRoutineItemInput, 'id' | 'exercise_id'>>;

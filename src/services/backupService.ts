@@ -14,7 +14,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { SQLiteDatabase } from 'expo-sqlite';
 import { getDatabase } from '../database';
-import { EspacoMulherBackupV1 } from '../types/backup';
+import { EspacoMulherBackupV1, BackupData } from '../types/backup';
 
 const CLINIC_BACKUP_IDENTITY = {
   professionalName: 'Dra. Rogéria Collares',
@@ -45,6 +45,96 @@ export interface BackupImportResult {
 }
 
 /**
+ * Sanitizes text inputs to prevent null-byte injection (\0) and strip non-printable control chars,
+ * while preserving standard Portuguese text, valid whitespace, accents, and punctuation.
+ */
+export function sanitizeText(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  const str = String(value);
+  // Strip null bytes and non-printable control characters (except newline, tab, carriage return)
+  return str.replace(/\0/g, '').replace(/[\x01-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+}
+
+/**
+ * Sanitizes numbers ensuring they are finite and not NaN/Infinity.
+ */
+export function sanitizeNumber(value: unknown, fallback: number = 0): number {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  const num = Number(value);
+  return Number.isFinite(num) ? num : fallback;
+}
+
+/**
+ * Sanitizes optional numbers ensuring they are finite or null.
+ */
+export function sanitizeOptionalNumber(value: unknown): number | null {
+  if (value === null || value === undefined || value === '') return null;
+  const num = Number(value);
+  return Number.isFinite(num) ? num : null;
+}
+
+/**
+ * Sanitizes patient status to allowed domain values.
+ */
+export function sanitizePatientStatus(status: unknown): 'active' | 'archived' | 'discharged' {
+  if (status === 'archived' || status === 'discharged') return status;
+  return 'active';
+}
+
+/**
+ * Safely sanitizes JSON-encoded anamnesis clinical fields.
+ */
+export function sanitizeJsonField(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'object') {
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return null;
+    }
+  }
+  return sanitizeText(value);
+}
+
+/**
+ * Validates the schema of the BackupData payload, ensuring each relational
+ * table exists and every entity is a valid object with an identifier.
+ */
+export function validateBackupDataSchema(data: any): asserts data is BackupData {
+  if (!data || typeof data !== 'object') {
+    throw new Error('Conteúdo dos dados do backup inexistente ou corrompido.');
+  }
+
+  const requiredTables = [
+    'patients',
+    'anamnesis',
+    'postural_evaluations',
+    'bioimpedance',
+    'exercises',
+    'routines',
+    'routine_items',
+  ] as const;
+
+  for (let i = 0; i < requiredTables.length; i++) {
+    const table = requiredTables[i];
+    const rows = data[table];
+    if (!Array.isArray(rows)) {
+      throw new Error(`Tabela ausente ou formato inválido no backup: ${table}`);
+    }
+    const len = rows.length;
+    for (let j = 0; j < len; j++) {
+      const row = rows[j];
+      if (!row || typeof row !== 'object' || Array.isArray(row)) {
+        throw new Error(`Registro inválido na tabela ${table}: formato de objeto esperado.`);
+      }
+      if (typeof row.id !== 'string' || row.id.trim() === '') {
+        throw new Error(`Registro inválido na tabela ${table}: identificador id obrigatório ausente.`);
+      }
+    }
+  }
+}
+
+/**
  * Validates the backup payload structure and referential integrity (In-memory Dry Run).
  * Throws an explicit, localized error if the payload is invalid or referential constraints are violated.
  */
@@ -62,25 +152,7 @@ export function validateBackupPayload(payload: any): asserts payload is EspacoMu
   }
 
   const { data } = payload;
-  if (!data || typeof data !== 'object') {
-    throw new Error('Conteúdo dos dados do backup inexistente ou corrompido.');
-  }
-
-  const requiredTables = [
-    'patients',
-    'anamnesis',
-    'postural_evaluations',
-    'bioimpedance',
-    'exercises',
-    'routines',
-    'routine_items',
-  ] as const;
-
-  for (const table of requiredTables) {
-    if (!Array.isArray(data[table])) {
-      throw new Error(`Tabela ausente ou formato inválido no backup: ${table}`);
-    }
-  }
+  validateBackupDataSchema(data);
 
   // 1. Referential integrity check: Patient foreign keys
   const patientIds = new Set<string>(data.patients.map((p: any) => p.id));
@@ -257,7 +329,7 @@ export async function importDatabaseBackup(
       DELETE FROM patients;
     `);
 
-    // 1. Restore patients
+    // 1. Restore patients with strict sanitization and parameter bindings
     for (const p of data.patients) {
       await db.runAsync(
         `INSERT INTO patients (
@@ -265,19 +337,19 @@ export async function importDatabaseBackup(
           city_state, email, insurance, status, created_at, updated_at
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
         [
-          p.id,
-          p.name,
-          p.birthdate ?? null,
-          p.age ?? null,
-          p.phone,
-          p.address ?? null,
-          p.neighborhood ?? null,
-          p.city_state || 'Rio das Ostras - RJ',
-          p.email ?? null,
-          p.insurance ?? null,
-          p.status || 'active',
-          p.created_at,
-          p.updated_at,
+          sanitizeText(p.id),
+          sanitizeText(p.name),
+          sanitizeText(p.birthdate),
+          sanitizeOptionalNumber(p.age),
+          sanitizeText(p.phone),
+          sanitizeText(p.address),
+          sanitizeText(p.neighborhood),
+          sanitizeText(p.city_state) || 'Rio das Ostras - RJ',
+          sanitizeText(p.email),
+          sanitizeText(p.insurance),
+          sanitizePatientStatus(p.status),
+          sanitizeText(p.created_at) || new Date().toISOString(),
+          sanitizeText(p.updated_at) || new Date().toISOString(),
         ]
       );
     }
@@ -291,31 +363,25 @@ export async function importDatabaseBackup(
           contraindications, is_custom, created_at, updated_at
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
         [
-          e.id,
-          e.name,
-          e.apparatus,
-          e.description ?? null,
-          e.default_springs ?? null,
-          e.default_reps ?? '10',
-          e.default_sets ?? 1,
-          e.level ?? 'iniciante',
-          e.postural_focus ?? null,
-          e.contraindications ?? null,
-          e.is_custom ?? 0,
-          e.created_at,
-          e.updated_at ?? e.created_at,
+          sanitizeText(e.id),
+          sanitizeText(e.name),
+          sanitizeText(e.apparatus),
+          sanitizeText(e.description),
+          sanitizeText(e.default_springs),
+          sanitizeText(e.default_reps) || '10',
+          sanitizeNumber(e.default_sets, 1),
+          sanitizeText(e.level) || 'iniciante',
+          sanitizeText(e.postural_focus),
+          sanitizeText(e.contraindications),
+          e.is_custom ? 1 : 0,
+          sanitizeText(e.created_at) || new Date().toISOString(),
+          sanitizeText(e.updated_at) || sanitizeText(e.created_at) || new Date().toISOString(),
         ]
       );
     }
 
     // 3. Restore anamnesis
     for (const a of data.anamnesis) {
-      const fractures = typeof a.fractures === 'object' && a.fractures !== null ? JSON.stringify(a.fractures) : (a.fractures ?? null);
-      const luxations = typeof a.luxations === 'object' && a.luxations !== null ? JSON.stringify(a.luxations) : (a.luxations ?? null);
-      const pregnancies = typeof a.pregnancies === 'object' && a.pregnancies !== null ? JSON.stringify(a.pregnancies) : (a.pregnancies ?? null);
-      const abortions = typeof a.abortions === 'object' && a.abortions !== null ? JSON.stringify(a.abortions) : (a.abortions ?? null);
-      const painComplaints = typeof a.pain_complaints === 'object' && a.pain_complaints !== null ? JSON.stringify(a.pain_complaints) : (a.pain_complaints ?? null);
-
       await db.runAsync(
         `INSERT INTO anamnesis (
           id, patient_id, lab_tests, medications, allergies, surgeries,
@@ -324,23 +390,23 @@ export async function importDatabaseBackup(
           created_at, updated_at
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
         [
-          a.id,
-          a.patient_id,
-          a.lab_tests ?? null,
-          a.medications ?? null,
-          a.allergies ?? null,
-          a.surgeries ?? null,
-          fractures,
-          luxations,
-          pregnancies,
-          abortions,
-          a.physical_activity ?? null,
-          painComplaints,
-          a.pain_intensity ?? 0,
-          a.imaging_exams ?? null,
-          a.clinical_notes ?? null,
-          a.created_at,
-          a.updated_at,
+          sanitizeText(a.id),
+          sanitizeText(a.patient_id),
+          sanitizeText(a.lab_tests),
+          sanitizeText(a.medications),
+          sanitizeText(a.allergies),
+          sanitizeText(a.surgeries),
+          sanitizeJsonField(a.fractures),
+          sanitizeJsonField(a.luxations),
+          sanitizeJsonField(a.pregnancies),
+          sanitizeJsonField(a.abortions),
+          sanitizeText(a.physical_activity),
+          sanitizeJsonField(a.pain_complaints),
+          Math.max(0, Math.min(10, sanitizeNumber(a.pain_intensity, 0))),
+          sanitizeText(a.imaging_exams),
+          sanitizeText(a.clinical_notes),
+          sanitizeText(a.created_at) || new Date().toISOString(),
+          sanitizeText(a.updated_at) || new Date().toISOString(),
         ]
       );
     }
@@ -356,33 +422,33 @@ export async function importDatabaseBackup(
           photo_posterior_uri, notes, created_at, updated_at
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
         [
-          pos.id,
-          pos.patient_id,
-          pos.evaluation_date,
-          pos.head ?? null,
-          pos.shoulders ?? null,
-          pos.thales_triangle ?? null,
-          pos.knees ?? null,
-          pos.feet ?? null,
-          pos.cervical ?? null,
-          pos.lateral_shoulders ?? null,
-          pos.abdomen ?? null,
-          pos.dorsal ?? null,
-          pos.lumbar ?? null,
-          pos.pelvis ?? null,
-          pos.arch ?? null,
-          pos.scapula ?? null,
-          pos.scoliosis ?? null,
-          pos.posterior_pelvis ?? null,
-          pos.gluteal_line ?? null,
-          pos.popliteal_line ?? null,
-          pos.musculature ?? null,
-          pos.photo_frontal_uri ?? null,
-          pos.photo_lateral_uri ?? null,
-          pos.photo_posterior_uri ?? null,
-          pos.notes ?? null,
-          pos.created_at,
-          pos.updated_at,
+          sanitizeText(pos.id),
+          sanitizeText(pos.patient_id),
+          sanitizeText(pos.evaluation_date),
+          sanitizeText(pos.head),
+          sanitizeText(pos.shoulders),
+          sanitizeText(pos.thales_triangle),
+          sanitizeText(pos.knees),
+          sanitizeText(pos.feet),
+          sanitizeText(pos.cervical),
+          sanitizeText(pos.lateral_shoulders),
+          sanitizeText(pos.abdomen),
+          sanitizeText(pos.dorsal),
+          sanitizeText(pos.lumbar),
+          sanitizeText(pos.pelvis),
+          sanitizeText(pos.arch),
+          sanitizeText(pos.scapula),
+          sanitizeText(pos.scoliosis),
+          sanitizeText(pos.posterior_pelvis),
+          sanitizeText(pos.gluteal_line),
+          sanitizeText(pos.popliteal_line),
+          sanitizeText(pos.musculature),
+          sanitizeText(pos.photo_frontal_uri),
+          sanitizeText(pos.photo_lateral_uri),
+          sanitizeText(pos.photo_posterior_uri),
+          sanitizeText(pos.notes),
+          sanitizeText(pos.created_at) || new Date().toISOString(),
+          sanitizeText(pos.updated_at) || new Date().toISOString(),
         ]
       );
     }
@@ -398,30 +464,30 @@ export async function importDatabaseBackup(
           clinical_opinion, created_at, updated_at
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
         [
-          b.id,
-          b.patient_id,
-          b.evaluation_date,
-          b.weight,
-          b.height,
-          b.abdominal_circ ?? null,
-          b.bmi,
-          b.body_age ?? null,
-          b.metabolic_age ?? null,
-          b.bmr ?? null,
-          b.body_fat_percent,
-          b.visceral_fat,
-          b.muscle_mass_kg,
-          b.body_water_pct ?? null,
-          b.ideal_weight ?? null,
-          b.target_weight ?? null,
-          b.fat_arm_r ?? null,
-          b.fat_arm_l ?? null,
-          b.fat_trunk ?? null,
-          b.fat_leg_r ?? null,
-          b.fat_leg_l ?? null,
-          b.clinical_opinion ?? null,
-          b.created_at,
-          b.updated_at,
+          sanitizeText(b.id),
+          sanitizeText(b.patient_id),
+          sanitizeText(b.evaluation_date),
+          sanitizeNumber(b.weight),
+          sanitizeNumber(b.height),
+          sanitizeOptionalNumber(b.abdominal_circ),
+          sanitizeNumber(b.bmi),
+          sanitizeOptionalNumber(b.body_age),
+          sanitizeOptionalNumber(b.metabolic_age),
+          sanitizeOptionalNumber(b.bmr),
+          sanitizeNumber(b.body_fat_percent),
+          sanitizeNumber(b.visceral_fat),
+          sanitizeNumber(b.muscle_mass_kg),
+          sanitizeOptionalNumber(b.body_water_pct),
+          sanitizeOptionalNumber(b.ideal_weight),
+          sanitizeOptionalNumber(b.target_weight),
+          sanitizeOptionalNumber(b.fat_arm_r),
+          sanitizeOptionalNumber(b.fat_arm_l),
+          sanitizeOptionalNumber(b.fat_trunk),
+          sanitizeOptionalNumber(b.fat_leg_r),
+          sanitizeOptionalNumber(b.fat_leg_l),
+          sanitizeText(b.clinical_opinion),
+          sanitizeText(b.created_at) || new Date().toISOString(),
+          sanitizeText(b.updated_at) || new Date().toISOString(),
         ]
       );
     }
@@ -432,13 +498,13 @@ export async function importDatabaseBackup(
         `INSERT INTO routines (id, patient_id, name, notes, status, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?);`,
         [
-          r.id,
-          r.patient_id,
-          r.name,
-          r.notes ?? null,
-          r.status || 'active',
-          r.created_at,
-          r.updated_at,
+          sanitizeText(r.id),
+          sanitizeText(r.patient_id),
+          sanitizeText(r.name),
+          sanitizeText(r.notes),
+          sanitizeText(r.status) || 'active',
+          sanitizeText(r.created_at) || new Date().toISOString(),
+          sanitizeText(r.updated_at) || new Date().toISOString(),
         ]
       );
     }
@@ -451,16 +517,16 @@ export async function importDatabaseBackup(
           postural_notes, sort_order, created_at, updated_at
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
         [
-          item.id,
-          item.routine_id,
-          item.exercise_id,
-          item.sets ?? 1,
-          item.reps ?? '10',
-          item.springs_resistance ?? null,
-          item.postural_notes ?? null,
-          item.sort_order ?? 0,
-          item.created_at ?? new Date().toISOString(),
-          item.updated_at ?? new Date().toISOString(),
+          sanitizeText(item.id),
+          sanitizeText(item.routine_id),
+          sanitizeText(item.exercise_id),
+          sanitizeNumber(item.sets, 1),
+          sanitizeText(item.reps) || '10',
+          sanitizeText(item.springs_resistance),
+          sanitizeText(item.postural_notes),
+          sanitizeNumber(item.sort_order, 0),
+          sanitizeText(item.created_at) || new Date().toISOString(),
+          sanitizeText(item.updated_at) || new Date().toISOString(),
         ]
       );
     }
