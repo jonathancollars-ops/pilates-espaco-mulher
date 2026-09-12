@@ -3,7 +3,12 @@ require('tsx/cjs');
 
 const { test, describe } = require('node:test');
 const assert = require('node:assert/strict');
-const { DatabaseSync } = require('node:sqlite');
+let DatabaseSync;
+try {
+  DatabaseSync = require('node:sqlite').DatabaseSync;
+} catch {
+  DatabaseSync = null;
+}
 
 const {
   calculateBMI,

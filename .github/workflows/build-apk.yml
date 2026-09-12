@@ -1,4 +1,4 @@
-﻿name: Build Android APK
+name: Build Android APK
 
 on:
   push:
@@ -24,10 +24,10 @@ jobs:
       - name: 📥 Clonar Repositório
         uses: actions/checkout@v4
 
-      - name: 🟢 Configurar Node.js (v20)
+      - name: 🟢 Configurar Node.js (v22)
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: 'npm'
 
       - name: ☕ Configurar Java JDK (17)
