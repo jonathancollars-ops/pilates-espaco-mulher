@@ -25,6 +25,18 @@ jobs:
       - name: 📥 Clonar Repositório
         uses: actions/checkout@v4
 
+      - name: 🧹 Liberar Espaço em Disco no Runner
+        run: |
+          echo "=== Espaço em disco antes da limpeza ==="
+          df -h /
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android/sdk/ndk/*
+          sudo rm -rf /opt/ghc
+          sudo rm -rf "/usr/local/share/boost"
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY" || true
+          echo "=== Espaço em disco após limpeza ==="
+          df -h /
+
       - name: 🟢 Configurar Node.js (v22)
         uses: actions/setup-node@v4
         with:
