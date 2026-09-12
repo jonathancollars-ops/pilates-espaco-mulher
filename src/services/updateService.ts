@@ -51,7 +51,7 @@ export interface UpdateCheckOptions {
   silent?: boolean;
 }
 
-const DEFAULT_GITHUB_OWNER = 'pilates-espaco-mulher';
+const DEFAULT_GITHUB_OWNER = 'jonathancollars-ops';
 const DEFAULT_GITHUB_REPO = 'pilates-espaco-mulher';
 const DEFAULT_TIMEOUT_MS = 6000;
 
