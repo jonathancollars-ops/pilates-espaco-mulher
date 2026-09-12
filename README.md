@@ -28,7 +28,8 @@ Aplicativo mobile nativo (iOS & Android via Expo / React Native) para avaliaçã
 │   Apple HIG Design System, Inset Grouped Lists, Large Titles, Haptics  │
 ├────────────────────────────────────────────────────────────────────────┤
 │                           Navigation Layer                             │
-│       Tabs: Pacientes | Treinos | Aparelhos | Relatórios | Ajustes     │
+│   Tabs: 📅 Agenda (Home) | 👥 Pacientes | 🧘 Treinos | 📊 Sessões      │
+│   Header Right: ⚙️ Modal Sheet de Ajustes (Backup JSON & OTA Updates)  │
 ├────────────────────────────────────────────────────────────────────────┤
 │                            Feature Modules                             │
 │  - Cadastro & Busca de Pacientes  - Avaliação Postural & Fotogrametria │
