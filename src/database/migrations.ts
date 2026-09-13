@@ -9,8 +9,23 @@ import {
   SCHEMA_V1_INDICES,
   SCHEMA_V2_DDL,
   SCHEMA_V2_INDICES,
+  SCHEMA_V3_DDL,
+  SCHEMA_V3_INDICES,
 } from './schema';
 import { seedInitialExercises } from './seeds';
+
+export async function addColumnIfNotExists(
+  db: SQLiteDatabase,
+  table: string,
+  column: string,
+  type: string
+): Promise<void> {
+  const columns = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(${table});`);
+  const exists = columns.some((c) => c.name === column);
+  if (!exists) {
+    await db.execAsync(`ALTER TABLE ${table} ADD COLUMN ${column} ${type};`);
+  }
+}
 
 export interface Migration {
   version: number;
@@ -39,6 +54,30 @@ export const MIGRATIONS: Migration[] = [
       await db.execAsync(SCHEMA_V2_DDL);
       // 2. Create performance indices
       await db.execAsync(SCHEMA_V2_INDICES);
+    },
+  },
+  {
+    version: 3,
+    name: 'v3_clinical_enhancements_photos_and_profiles',
+    up: async (db: SQLiteDatabase) => {
+      // 1. Extend patients table
+      await addColumnIfNotExists(db, 'patients', 'profession', 'TEXT');
+      await addColumnIfNotExists(db, 'patients', 'activity_time', 'TEXT');
+      await addColumnIfNotExists(db, 'patients', 'marital_status', 'TEXT');
+      await addColumnIfNotExists(db, 'patients', 'avatar_uri', 'TEXT');
+
+      // 2. Extend anamnesis table
+      await addColumnIfNotExists(db, 'anamnesis', 'clinical_history', 'TEXT');
+
+      // 3. Extend postural_evaluations table
+      await addColumnIfNotExists(db, 'postural_evaluations', 'hip_alignment', 'TEXT');
+
+      // 4. Extend bioimpedance table
+      await addColumnIfNotExists(db, 'bioimpedance', 'chronological_age', 'INTEGER');
+
+      // 5. Create patient_condition_photos table and indices
+      await db.execAsync(SCHEMA_V3_DDL);
+      await db.execAsync(SCHEMA_V3_INDICES);
     },
   },
 ];

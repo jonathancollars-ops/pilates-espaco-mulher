@@ -45,11 +45,11 @@ export const bioimpedanceRepository = {
     await db.runAsync(
       `INSERT INTO bioimpedance (
         id, patient_id, evaluation_date, weight, height, abdominal_circ,
-        bmi, body_age, metabolic_age, bmr, body_fat_percent, visceral_fat,
+        bmi, chronological_age, body_age, metabolic_age, bmr, body_fat_percent, visceral_fat,
         muscle_mass_kg, body_water_pct, ideal_weight, target_weight,
         fat_arm_r, fat_arm_l, fat_trunk, fat_leg_r, fat_leg_l,
         clinical_opinion, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
       [
         id,
         patientId,
@@ -58,6 +58,7 @@ export const bioimpedanceRepository = {
         data.height,
         data.abdominal_circ ?? null,
         bmi,
+        data.chronological_age ?? null,
         data.body_age ?? null,
         data.metabolic_age ?? null,
         data.bmr ?? null,
@@ -86,6 +87,7 @@ export const bioimpedanceRepository = {
       height: data.height,
       abdominal_circ: data.abdominal_circ ?? null,
       bmi,
+      chronological_age: data.chronological_age ?? null,
       body_age: data.body_age ?? null,
       metabolic_age: data.metabolic_age ?? null,
       bmr: data.bmr ?? null,
@@ -197,7 +199,7 @@ export const bioimpedanceRepository = {
     await db.runAsync(
       `UPDATE bioimpedance SET
         evaluation_date = ?, weight = ?, height = ?, abdominal_circ = ?,
-        bmi = ?, body_age = ?, metabolic_age = ?, bmr = ?, body_fat_percent = ?,
+        bmi = ?, chronological_age = ?, body_age = ?, metabolic_age = ?, bmr = ?, body_fat_percent = ?,
         visceral_fat = ?, muscle_mass_kg = ?, body_water_pct = ?, ideal_weight = ?,
         target_weight = ?, fat_arm_r = ?, fat_arm_l = ?, fat_trunk = ?,
         fat_leg_r = ?, fat_leg_l = ?, clinical_opinion = ?, updated_at = ?
@@ -208,6 +210,7 @@ export const bioimpedanceRepository = {
         updated.height,
         updated.abdominal_circ ?? null,
         updated.bmi,
+        updated.chronological_age ?? null,
         updated.body_age ?? null,
         updated.metabolic_age ?? null,
         updated.bmr ?? null,

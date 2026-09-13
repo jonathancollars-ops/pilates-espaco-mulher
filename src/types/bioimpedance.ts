@@ -11,12 +11,14 @@ export interface Bioimpedance {
   height: number; // cm
   abdominal_circ?: number | null; // cm
   bmi: number; // kg/m^2 (calculated)
-  body_age?: number | null; // anos
+  chronological_age?: number | null; // anos (Idade Cronológica)
+  body_age?: number | null; // anos (Idade Corporal da balança)
   metabolic_age?: number | null; // anos
   bmr?: number | null; // kcal/dia (TMB)
   body_fat_percent: number; // %
   visceral_fat: number; // nível 1-59
   muscle_mass_kg: number; // kg
+  muscle_mass_percent?: number | null; // %
   body_water_pct?: number | null; // %
   ideal_weight?: number | null; // kg
   target_weight?: number | null; // kg
@@ -39,12 +41,14 @@ export interface CreateBioimpedanceInput {
   height: number;
   abdominal_circ?: number | null;
   bmi?: number; // Optional on input, calculated if not provided
+  chronological_age?: number | null;
   body_age?: number | null;
   metabolic_age?: number | null;
   bmr?: number | null;
   body_fat_percent: number;
   visceral_fat: number;
   muscle_mass_kg: number;
+  muscle_mass_percent?: number | null;
   body_water_pct?: number | null;
   ideal_weight?: number | null;
   target_weight?: number | null;

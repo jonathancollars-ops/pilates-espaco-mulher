@@ -31,6 +31,7 @@ import { Exercise } from '../types/exercise';
 import { Routine, RoutineItem } from '../types/routine';
 import { Appointment } from '../types/appointment';
 import { PackagePlan } from '../types/package';
+import { PatientConditionPhoto } from '../types/conditionPhoto';
 
 export interface BackupExportResult {
   success: boolean;
@@ -162,6 +163,7 @@ export function validateBackupDataSchema(data: any): asserts data is BackupData 
   const optionalTables = [
     'appointments',
     'package_plans',
+    'patient_condition_photos',
   ] as const;
 
   for (let i = 0; i < optionalTables.length; i++) {
@@ -179,6 +181,15 @@ export function validateBackupDataSchema(data: any): asserts data is BackupData 
         }
         if (typeof row.id !== 'string' || row.id.trim() === '') {
           throw new Error(`Registro inválido na tabela ${table}: identificador id obrigatório ausente.`);
+        }
+
+        if (table === 'patient_condition_photos') {
+          if (typeof row.patient_id !== 'string' || row.patient_id.trim() === '') {
+            throw new Error(`Registro inválido na tabela patient_condition_photos: patient_id obrigatório ausente.`);
+          }
+          if (typeof row.photo_uri !== 'string' || row.photo_uri.trim() === '') {
+            throw new Error(`Registro inválido na tabela patient_condition_photos: photo_uri obrigatório ausente.`);
+          }
         }
 
         if (table === 'appointments') {
@@ -327,6 +338,15 @@ export function validateBackupPayload(payload: any): asserts payload is EspacoMu
     }
   }
 
+  // Check patient_condition_photos foreign keys
+  if (Array.isArray(data.patient_condition_photos)) {
+    for (const ph of data.patient_condition_photos) {
+      if (!patientIds.has(ph.patient_id)) {
+        throw new Error(`Integridade referencial violada: Foto de condição clínica ${ph.id} referencia paciente inexistente ${ph.patient_id}.`);
+      }
+    }
+  }
+
   // 2. Referential integrity check: Routine Items foreign keys
   const routineIds = new Set<string>(data.routines.map((r: any) => r.id));
   const exerciseIds = new Set<string>(data.exercises.map((e: any) => e.id));
@@ -366,6 +386,7 @@ export async function exportDatabaseBackup(
 
   let appointments: Appointment[] = [];
   let package_plans: PackagePlan[] = [];
+  let patient_condition_photos: PatientConditionPhoto[] = [];
 
   try {
     const res = await db.getAllAsync<Appointment>('SELECT * FROM appointments ORDER BY date ASC, start_time ASC;');
@@ -378,6 +399,12 @@ export async function exportDatabaseBackup(
     if (Array.isArray(res)) package_plans = res;
   } catch {
     package_plans = [];
+  }
+  try {
+    const res = await db.getAllAsync<PatientConditionPhoto>('SELECT * FROM patient_condition_photos ORDER BY date ASC, created_at ASC;');
+    if (Array.isArray(res)) patient_condition_photos = res;
+  } catch {
+    patient_condition_photos = [];
   }
 
   const counts: EspacoMulherBackupV1['metadata']['counts'] = {
@@ -394,6 +421,11 @@ export async function exportDatabaseBackup(
   if (hasV2Data) {
     counts.appointments = appointments.length;
     counts.package_plans = package_plans.length;
+  }
+
+  const hasV3Data = databaseVersion >= 3 || patient_condition_photos.length > 0;
+  if (hasV3Data) {
+    counts.patient_condition_photos = patient_condition_photos.length;
   }
 
   const backup: EspacoMulherBackupV1 = {
@@ -421,6 +453,7 @@ export async function exportDatabaseBackup(
       routines,
       routine_items,
       ...(hasV2Data ? { appointments, package_plans } : {}),
+      ...(hasV3Data ? { patient_condition_photos } : {}),
     },
   };
 
@@ -495,6 +528,7 @@ export async function importDatabaseBackup(
     await db.execAsync(`
       DELETE FROM appointments;
       DELETE FROM package_plans;
+      DELETE FROM patient_condition_photos;
       DELETE FROM routine_items;
       DELETE FROM routines;
       DELETE FROM bioimpedance;
@@ -509,8 +543,9 @@ export async function importDatabaseBackup(
       await db.runAsync(
         `INSERT INTO patients (
           id, name, birthdate, age, phone, address, neighborhood,
-          city_state, email, insurance, status, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+          city_state, email, insurance, profession, activity_time,
+          marital_status, avatar_uri, status, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
         [
           sanitizeText(p.id),
           sanitizeText(p.name),
@@ -522,6 +557,10 @@ export async function importDatabaseBackup(
           sanitizeText(p.city_state) || 'Rio das Ostras - RJ',
           sanitizeText(p.email),
           sanitizeText(p.insurance),
+          sanitizeText(p.profession),
+          sanitizeText(p.activity_time),
+          sanitizeText(p.marital_status),
+          sanitizeText(p.avatar_uri),
           sanitizePatientStatus(p.status),
           sanitizeText(p.created_at) || new Date().toISOString(),
           sanitizeText(p.updated_at) || new Date().toISOString(),
@@ -752,6 +791,28 @@ export async function importDatabaseBackup(
             sanitizeText(apt.notes),
             sanitizeText(apt.created_at) || new Date().toISOString(),
             sanitizeText(apt.updated_at) || new Date().toISOString(),
+          ]
+        );
+      }
+    }
+
+    // 10. Restore patient condition photos (references patients)
+    if (Array.isArray(data.patient_condition_photos)) {
+      for (const ph of data.patient_condition_photos) {
+        await db.runAsync(
+          `INSERT INTO patient_condition_photos (
+            id, patient_id, photo_uri, category, title, notes, date, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+          [
+            sanitizeText(ph.id),
+            sanitizeText(ph.patient_id),
+            sanitizeText(ph.photo_uri),
+            sanitizeText(ph.category) || 'Geral',
+            sanitizeText(ph.title),
+            sanitizeText(ph.notes),
+            sanitizeText(ph.date),
+            sanitizeText(ph.created_at) || new Date().toISOString(),
+            sanitizeText(ph.updated_at) || new Date().toISOString(),
           ]
         );
       }

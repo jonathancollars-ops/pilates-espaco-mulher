@@ -12,3 +12,4 @@ export * from './routine';
 export * from './backup';
 export * from './appointment';
 export * from './package';
+export * from './conditionPhoto';

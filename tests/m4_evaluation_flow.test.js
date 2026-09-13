@@ -51,7 +51,7 @@ function createBioimpedanceMockDb() {
       if (trimmed.startsWith('INSERT INTO BIOIMPEDANCE')) {
         const [
           id, patient_id, evaluation_date, weight, height, abdominal_circ,
-          bmi, body_age, metabolic_age, bmr, body_fat_percent, visceral_fat,
+          bmi, chronological_age, body_age, metabolic_age, bmr, body_fat_percent, visceral_fat,
           muscle_mass_kg, body_water_pct, ideal_weight, target_weight,
           fat_arm_r, fat_arm_l, fat_trunk, fat_leg_r, fat_leg_l,
           clinical_opinion, created_at, updated_at,
@@ -65,6 +65,7 @@ function createBioimpedanceMockDb() {
           height,
           abdominal_circ,
           bmi,
+          chronological_age,
           body_age,
           metabolic_age,
           bmr,
@@ -93,7 +94,7 @@ function createBioimpedanceMockDb() {
         if (existing) {
           const [
             evaluation_date, weight, height, abdominal_circ,
-            bmi, body_age, metabolic_age, bmr, body_fat_percent,
+            bmi, chronological_age, body_age, metabolic_age, bmr, body_fat_percent,
             visceral_fat, muscle_mass_kg, body_water_pct, ideal_weight,
             target_weight, fat_arm_r, fat_arm_l, fat_trunk,
             fat_leg_r, fat_leg_l, clinical_opinion, updated_at,
@@ -106,6 +107,7 @@ function createBioimpedanceMockDb() {
             height,
             abdominal_circ,
             bmi,
+            chronological_age,
             body_age,
             metabolic_age,
             bmr,

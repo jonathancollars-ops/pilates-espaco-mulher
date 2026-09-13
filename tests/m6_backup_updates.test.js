@@ -102,14 +102,29 @@ function createTransactionalBackupMockDb(initialData = {}) {
         if (failOnTableInsert === 'patients') {
           throw new Error('Simulated SQLite Disk I/O Error: failed inserting into patients');
         }
-        const [
-          id, name, birthdate, age, phone, address, neighborhood,
-          city_state, email, insurance, status, created_at, updated_at,
-        ] = params;
-        tables.patients.set(id, {
-          id, name, birthdate, age, phone, address, neighborhood,
-          city_state, email, insurance, status, created_at, updated_at,
-        });
+        let patientObj;
+        if (params.length >= 17) {
+          const [
+            id, name, birthdate, age, phone, address, neighborhood,
+            city_state, email, insurance, profession, activity_time,
+            marital_status, avatar_uri, status, created_at, updated_at,
+          ] = params;
+          patientObj = {
+            id, name, birthdate, age, phone, address, neighborhood,
+            city_state, email, insurance, profession, activity_time,
+            marital_status, avatar_uri, status, created_at, updated_at,
+          };
+        } else {
+          const [
+            id, name, birthdate, age, phone, address, neighborhood,
+            city_state, email, insurance, status, created_at, updated_at,
+          ] = params;
+          patientObj = {
+            id, name, birthdate, age, phone, address, neighborhood,
+            city_state, email, insurance, status, created_at, updated_at,
+          };
+        }
+        tables.patients.set(params[0], patientObj);
         return { lastInsertRowId: 1, changes: 1 };
       }
 

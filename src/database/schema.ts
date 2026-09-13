@@ -23,6 +23,10 @@ export const SCHEMA_V1_TABLES = {
       city_state TEXT NOT NULL DEFAULT 'Rio das Ostras - RJ',
       email TEXT,
       insurance TEXT,
+      profession TEXT,
+      activity_time TEXT,
+      marital_status TEXT,
+      avatar_uri TEXT,
       status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active', 'archived', 'discharged')),
       created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
       updated_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
@@ -33,6 +37,7 @@ export const SCHEMA_V1_TABLES = {
     CREATE TABLE IF NOT EXISTS anamnesis (
       id TEXT PRIMARY KEY NOT NULL,
       patient_id TEXT NOT NULL UNIQUE,
+      clinical_history TEXT,
       lab_tests TEXT,
       medications TEXT,
       allergies TEXT,
@@ -74,6 +79,7 @@ export const SCHEMA_V1_TABLES = {
       posterior_pelvis TEXT,
       gluteal_line TEXT,
       popliteal_line TEXT,
+      hip_alignment TEXT,
       musculature TEXT,
       photo_frontal_uri TEXT,
       photo_lateral_uri TEXT,
@@ -94,6 +100,7 @@ export const SCHEMA_V1_TABLES = {
       height REAL NOT NULL,
       abdominal_circ REAL,
       bmi REAL NOT NULL,
+      chronological_age INTEGER,
       body_age INTEGER,
       metabolic_age INTEGER,
       bmr REAL,
@@ -244,4 +251,30 @@ export const SCHEMA_V2_INDICES = `
   CREATE INDEX IF NOT EXISTS idx_package_plans_patient_status ON package_plans(patient_id, status);
   CREATE INDEX IF NOT EXISTS idx_package_plans_patient_id ON package_plans(patient_id);
 `;
+
+export const SCHEMA_V3_TABLES = {
+  patient_condition_photos: `
+    CREATE TABLE IF NOT EXISTS patient_condition_photos (
+      id TEXT PRIMARY KEY NOT NULL,
+      patient_id TEXT NOT NULL,
+      photo_uri TEXT NOT NULL,
+      category TEXT NOT NULL DEFAULT 'Geral',
+      title TEXT,
+      notes TEXT,
+      date TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+      updated_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+      FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE
+    );
+  `,
+};
+
+export const SCHEMA_V3_DDL = `
+  ${SCHEMA_V3_TABLES.patient_condition_photos}
+`;
+
+export const SCHEMA_V3_INDICES = `
+  CREATE INDEX IF NOT EXISTS idx_condition_photos_patient_date ON patient_condition_photos(patient_id, date DESC);
+`;
+
 

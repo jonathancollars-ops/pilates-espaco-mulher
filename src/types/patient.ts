@@ -8,6 +8,14 @@
 
 export type PatientStatus = 'active' | 'archived' | 'discharged';
 
+export type MaritalStatus =
+  | 'Solteira'
+  | 'Casada'
+  | 'União Estável'
+  | 'Divorciada'
+  | 'Viúva'
+  | 'Outro';
+
 export interface Patient {
   id: string; // UUID v4
   name: string; // Nome Completo
@@ -18,7 +26,11 @@ export interface Patient {
   neighborhood?: string | null; // Bairro (ex.: Costa Azul)
   city_state: string; // Default: 'Rio das Ostras - RJ'
   email?: string | null;
-  insurance?: string | null; // Convênio: 'Particular', 'Unimed', 'Bradesco', etc.
+  insurance?: string | null; // Convênio: 'Particular', 'Totalpass', 'Gympass', 'IBNJ', 'Outros'
+  profession?: string | null;
+  activity_time?: string | null;
+  marital_status?: MaritalStatus | string | null;
+  avatar_uri?: string | null;
   status: PatientStatus; // 'active' | 'archived' | 'discharged'
   created_at: string; // ISO 8601 UTC
   updated_at: string; // ISO 8601 UTC
@@ -35,6 +47,10 @@ export interface CreatePatientInput {
   city_state?: string; // If omitted, defaults to 'Rio das Ostras - RJ'
   email?: string | null;
   insurance?: string | null;
+  profession?: string | null;
+  activity_time?: string | null;
+  marital_status?: MaritalStatus | string | null;
+  avatar_uri?: string | null;
   status?: PatientStatus; // If omitted, defaults to 'active'
 }
 
@@ -48,6 +64,10 @@ export interface UpdatePatientInput {
   city_state?: string;
   email?: string | null;
   insurance?: string | null;
+  profession?: string | null;
+  activity_time?: string | null;
+  marital_status?: MaritalStatus | string | null;
+  avatar_uri?: string | null;
   status?: PatientStatus;
 }
 

@@ -11,3 +11,4 @@ export * from './exerciseRepository';
 export * from './routineRepository';
 export * from './appointmentRepository';
 export * from './packageRepository';
+export * from './conditionPhotoRepository';

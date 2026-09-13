@@ -12,6 +12,7 @@ const mockSqlitePath = path.resolve(__dirname, 'mocks', 'expo-sqlite.cjs');
 const mockPrintPath = path.resolve(__dirname, 'mocks', 'expo-print.cjs');
 const mockUpdatesPath = path.resolve(__dirname, 'mocks', 'expo-updates.cjs');
 const mockConstantsPath = path.resolve(__dirname, 'mocks', 'expo-constants.cjs');
+const mockImagePickerPath = path.resolve(__dirname, 'mocks', 'expo-image-picker.cjs');
 
 const origResolve = Module._resolveFilename;
 Module._resolveFilename = function (request, parent, isMain, options) {
@@ -47,6 +48,9 @@ Module._resolveFilename = function (request, parent, isMain, options) {
   }
   if (request === 'expo-constants') {
     return mockConstantsPath;
+  }
+  if (request === 'expo-image-picker') {
+    return mockImagePickerPath;
   }
   return origResolve.call(this, request, parent, isMain, options);
 };

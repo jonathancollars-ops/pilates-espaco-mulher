@@ -19,6 +19,7 @@ import {
   StyleSheet,
   Pressable,
   TouchableOpacity,
+  Image,
   Linking,
   Alert,
   StyleProp,
@@ -110,9 +111,13 @@ export function PatientCard({
     >
       {/* 1. Header: Avatar, Name, and Badges */}
       <View style={styles.headerRow}>
-        {/* Initials Avatar */}
+        {/* Initials or Photo Avatar */}
         <View style={styles.avatarCircle}>
-          <Text style={styles.avatarText}>{initials}</Text>
+          {patient.avatar_uri ? (
+            <Image source={{ uri: patient.avatar_uri }} style={styles.avatarImage} />
+          ) : (
+            <Text style={styles.avatarText}>{initials}</Text>
+          )}
         </View>
 
         {/* Patient Identity & Meta */}
@@ -203,15 +208,21 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   avatarCircle: {
-    width: 44, // HIG touch ergonomic target
-    height: 44,
-    borderRadius: Radii.pill,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: Colors.primarySubtle,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: Spacing.md,
     borderWidth: 1,
     borderColor: '#E6D8EF',
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
   },
   avatarText: {
     ...Typography.headline,

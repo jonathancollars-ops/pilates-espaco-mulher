@@ -11,6 +11,7 @@ import { Exercise } from './exercise';
 import { Routine, RoutineItem } from './routine';
 import { Appointment } from './appointment';
 import { PackagePlan } from './package';
+import { PatientConditionPhoto } from './conditionPhoto';
 
 export interface BackupMetadata {
   version: '1.0.0';
@@ -35,6 +36,7 @@ export interface BackupMetadata {
     routine_items: number;
     appointments?: number;
     package_plans?: number;
+    patient_condition_photos?: number;
   };
 }
 
@@ -48,6 +50,7 @@ export interface BackupData {
   routine_items: RoutineItem[];
   appointments?: Appointment[];
   package_plans?: PackagePlan[];
+  patient_condition_photos?: PatientConditionPhoto[];
 }
 
 export interface EspacoMulherBackupV1 {

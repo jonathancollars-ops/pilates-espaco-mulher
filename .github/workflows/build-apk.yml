@@ -55,7 +55,7 @@ jobs:
       - name: 📦 Instalar Dependências
         run: npm install
 
-      - name: 🧪 Executar Testes Automatizados (364 testes)
+      - name: 🧪 Executar Testes Automatizados (428 testes)
         run: npm test
 
       - name: 🔍 Verificação de Tipos TypeScript (Strict)
@@ -88,7 +88,7 @@ jobs:
       - name: 🏷️ Organizar APK para Publicação
         run: |
           mkdir -p build-output
-          find android/app/build/outputs/apk -name "*.apk" -exec cp {} build-output/Pilates-Espaco-Mulher-v1.0.0.apk \;
+          find android/app/build/outputs/apk -name "*.apk" -exec cp {} build-output/Pilates-Espaco-Mulher-v1.1.0.apk \;
 
       - name: 📤 Fazer Upload do APK como Artefato da Build
         uses: actions/upload-artifact@v4
@@ -101,23 +101,26 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/') || github.event.inputs.create_release == 'true' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
-          name: "Pilates Espaço Mulher v1.0.0"
-          tag_name: "v1.0.0-build${{ github.run_number }}"
+          name: "Pilates Espaço Mulher v1.1.0"
+          tag_name: "v1.1.0-build${{ github.run_number }}"
           body: |
             ## 🌸 Pilates Espaço Mulher — Dra. Rogéria Collares (CREFITO 23093-F)
-            ### Versão Oficial v1.0.0 (Build #${{ github.run_number }})
+            ### Versão Oficial v1.1.0 (Build #${{ github.run_number }})
             
             Aplicativo mobile nativo para avaliação fisioterapêutica postural, bioimpedância, agenda e prescrição de Pilates.
             
-            #### 📱 Destaques desta Versão:
-            - **📅 Agenda Integrada**: Linha do tempo diária, visão mensal, card do paciente atual & próximo e confirmação rápida via WhatsApp.
-            - **👥 Prontuário Clínico**: Cadastro sem CPF/CEP, anamnese completa, avaliação postural, bioimpedância e laudo PDF A4 assinado.
-            - **🧘 Prescrição de Pilates**: 49 exercícios clássicos e clínicos + criação dinâmica de novos exercícios.
-            - **📊 Sessões & Pacotes**: Contador de sessões concluídas e alerta visual de renovação de planos.
-            - **🔒 100% Local-First**: Zero banco de dados externo, sem tela de login, backup/restore em JSON.
+            #### 📱 Destaques desta Versão (Expansão Clínica v1.1.0):
+            - 📸 **Fotos Clínicas & Galeria de Condições**: Captura e categorização de fotos clínicas (Postura, Escoliose, Cicatriz, Edema, Diástase, etc.) com armazenamento 100% local e seguro no dispositivo.
+            - 👤 **Foto de Perfil & Novos Dados**: Avatar circular (88x88 com iniciais de fallback), E-mail, Profissão, Tempo de atividade e Estado civil.
+            - 🏥 **Convênios e Parcerias**: Suporte nativo para Particular, Totalpass, Gympass, IBNJ e Outros (com especificação personalizada).
+            - 🤰 **Anamnese & Histórico Clínico**: Campo expandido de Histórico Clínico, reformulação de Gestação (partos, tipo Normal/Cesárea/Ambos, tempo da última gestação e abortos).
+            - 📐 **Avaliação Postural**: Adição de Alinhamento de Quadril (Nivelado, Elevado D/E, Anteversão, Retroversão, Rotações).
+            - ⚖️ **Bioimpedância & Idade Corporal**: Idade cronológica, idade corporal com indicador de vitalidade metabólica e Modal com Tabelas de Referência Clínica didáticas (Circunferência Abdominal, % Gordura Pollock, Gordura Visceral e Água Corporal).
+            - 📄 **Relatório Clínico PDF A4 Atualizado**: Inclusão de foto de perfil, dados obstétricos, alinhamento de quadril e anexo fotográfico opcional de condições.
+            - 🔒 **100% Local-First**: Zero banco de dados externo, sem tela de login, dados e fotos salvos com privacidade total.
             
             #### 📥 Download do APK:
-            Baixe o arquivo **`Pilates-Espaco-Mulher-v1.0.0.apk`** abaixo e instale diretamente no seu dispositivo Android.
+            Baixe o arquivo **`Pilates-Espaco-Mulher-v1.1.0.apk`** abaixo e instale diretamente no seu dispositivo Android.
           files: build-output/*.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -46,11 +46,13 @@ function createMockDatabase() {
       if (trimmed.startsWith('INSERT INTO PATIENTS')) {
         const [
           id, name, birthdate, age, phone, address, neighborhood,
-          city_state, email, insurance, status, created_at, updated_at,
+          city_state, email, insurance, profession, activity_time,
+          marital_status, avatar_uri, status, created_at, updated_at,
         ] = params;
         patientsTable.set(id, {
           id, name, birthdate, age, phone, address, neighborhood,
-          city_state, email, insurance, status, created_at, updated_at,
+          city_state, email, insurance, profession, activity_time,
+          marital_status, avatar_uri, status, created_at, updated_at,
         });
         return { lastInsertRowId: 1, changes: 1 };
       }
@@ -61,12 +63,14 @@ function createMockDatabase() {
         if (existing) {
           const [
             name, birthdate, age, phone, address, neighborhood,
-            city_state, email, insurance, status, updated_at,
+            city_state, email, insurance, profession, activity_time,
+            marital_status, avatar_uri, status, updated_at,
           ] = params;
           patientsTable.set(id, {
             ...existing,
             name, birthdate, age, phone, address, neighborhood,
-            city_state, email, insurance, status, updated_at,
+            city_state, email, insurance, profession, activity_time,
+            marital_status, avatar_uri, status, updated_at,
           });
           return { lastInsertRowId: 1, changes: 1 };
         }

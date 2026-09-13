@@ -88,6 +88,16 @@ function createMockDatabase() {
       }
 
       if (trimmed.startsWith('INSERT INTO ANAMNESIS')) {
+        const colMatch = sql.match(/INSERT\s+INTO\s+anamnesis\s*\(([^)]+)\)/i);
+        if (colMatch) {
+          const cols = colMatch[1].split(',').map((c) => c.trim().toLowerCase());
+          const record = {};
+          cols.forEach((col, idx) => {
+            record[col] = params[idx];
+          });
+          tables.anamnesis.set(record.id, record);
+          return { lastInsertRowId: 1, changes: 1 };
+        }
         const [
           id, patient_id, lab_tests, medications, allergies, surgeries,
           fractures, luxations, pregnancies, abortions, physical_activity,

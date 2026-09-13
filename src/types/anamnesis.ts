@@ -18,16 +18,24 @@ export interface LuxationEntry {
 }
 
 export interface PregnancyEntry {
-  has: 'sim' | 'nao';
-  quantity?: number; // ex.: 2
-  delivery_type?: 'Normal' | 'Cesariana' | 'Ambos';
+  has?: 'sim' | 'nao';
+  has_pregnancies?: boolean;
+  quantity?: number; // Número de partos
+  count?: number;
+  delivery_type?: 'Normal' | 'Cesárea' | 'Cesariana' | 'Ambos' | 'both' | 'cesarean' | 'normal' | string;
+  last_pregnancy_time?: string; // Tempo da última gestação (ex: '2 anos', '8 meses')
   complications?: string; // ex.: 'Diástase abdominal de 3cm'
+  notes?: string;
 }
 
 export interface AbortionEntry {
-  has: 'sim' | 'nao';
-  quantity?: number; // ex.: 1
+  has?: 'sim' | 'nao';
+  has_abortions?: boolean;
+  quantity?: number; // Número de abortos
+  count?: number;
   gestational_age?: string; // ex.: '8 semanas'
+  time?: string;
+  notes?: string;
 }
 
 export interface PainComplaintEntry {
@@ -40,6 +48,8 @@ export interface PainComplaintEntry {
 export interface Anamnesis {
   id: string; // UUID v4
   patient_id: string; // FK -> patients.id (1:1)
+  main_complaint?: string | null; // Queixa principal
+  clinical_history?: string | null; // Histórico clínico detalhado
   lab_tests?: string | null; // Exames laboratoriais
   medications?: string | null; // Medicamentos em uso contínuo
   allergies?: string | null; // Alergias conhecidas
@@ -58,6 +68,8 @@ export interface Anamnesis {
 }
 
 export interface UpsertAnamnesisInput {
+  main_complaint?: string | null;
+  clinical_history?: string | null;
   lab_tests?: string | null;
   medications?: string | null;
   allergies?: string | null;
@@ -71,4 +83,5 @@ export interface UpsertAnamnesisInput {
   pain_intensity?: number;
   imaging_exams?: string | null;
   clinical_notes?: string | null;
+  date?: string | null;
 }

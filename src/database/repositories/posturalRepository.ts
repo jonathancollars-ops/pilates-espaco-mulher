@@ -40,9 +40,9 @@ export const posturalRepository = {
         id, patient_id, evaluation_date, head, shoulders, thales_triangle,
         knees, feet, cervical, lateral_shoulders, abdomen, dorsal, lumbar,
         pelvis, arch, scapula, scoliosis, posterior_pelvis, gluteal_line,
-        popliteal_line, musculature, photo_frontal_uri, photo_lateral_uri,
+        popliteal_line, hip_alignment, musculature, photo_frontal_uri, photo_lateral_uri,
         photo_posterior_uri, notes, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
       [
         id,
         patientId,
@@ -64,6 +64,7 @@ export const posturalRepository = {
         data.posterior_pelvis ?? null,
         data.gluteal_line ?? null,
         data.popliteal_line ?? null,
+        data.hip_alignment ?? null,
         data.musculature ?? null,
         data.photo_frontal_uri ?? null,
         data.photo_lateral_uri ?? null,
@@ -95,6 +96,7 @@ export const posturalRepository = {
       posterior_pelvis: data.posterior_pelvis ?? null,
       gluteal_line: data.gluteal_line ?? null,
       popliteal_line: data.popliteal_line ?? null,
+      hip_alignment: data.hip_alignment ?? null,
       musculature: data.musculature ?? null,
       photo_frontal_uri: data.photo_frontal_uri ?? null,
       photo_lateral_uri: data.photo_lateral_uri ?? null,
@@ -173,8 +175,8 @@ export const posturalRepository = {
         evaluation_date = ?, head = ?, shoulders = ?, thales_triangle = ?,
         knees = ?, feet = ?, cervical = ?, lateral_shoulders = ?, abdomen = ?,
         dorsal = ?, lumbar = ?, pelvis = ?, arch = ?, scapula = ?, scoliosis = ?,
-        posterior_pelvis = ?, gluteal_line = ?, popliteal_line = ?, musculature = ?,
-        photo_frontal_uri = ?, photo_lateral_uri = ?, photo_posterior_uri = ?,
+        posterior_pelvis = ?, gluteal_line = ?, popliteal_line = ?, hip_alignment = ?,
+        musculature = ?, photo_frontal_uri = ?, photo_lateral_uri = ?, photo_posterior_uri = ?,
         notes = ?, updated_at = ?
       WHERE id = ?;`,
       [
@@ -196,6 +198,7 @@ export const posturalRepository = {
         updated.posterior_pelvis ?? null,
         updated.gluteal_line ?? null,
         updated.popliteal_line ?? null,
+        updated.hip_alignment ?? null,
         updated.musculature ?? null,
         updated.photo_frontal_uri ?? null,
         updated.photo_lateral_uri ?? null,

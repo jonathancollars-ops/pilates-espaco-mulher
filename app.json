@@ -2,7 +2,7 @@
   "expo": {
     "name": "Pilates Espaço Mulher",
     "slug": "pilates-espaco-mulher",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -16,8 +16,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.espacomulher.pilates",
       "infoPlist": {
-        "NSCameraUsageDescription": "Permitir acesso à câmera para captura de fotos na avaliação postural com grid visual de alinhamento.",
-        "NSPhotoLibraryUsageDescription": "Permitir acesso à galeria para seleção e importação de fotos de avaliação postural.",
+        "NSCameraUsageDescription": "Permitir acesso para captura de fotos de avaliação postural e acompanhamento clínico de condições do paciente.",
+        "NSPhotoLibraryUsageDescription": "Permitir acesso para captura de fotos de avaliação postural e acompanhamento clínico de condições do paciente.",
         "NSPhotoLibraryAddUsageDescription": "Permitir salvar relatórios clínicos gerados na galeria de fotos."
       }
     },
@@ -38,13 +38,13 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Permitir acesso à câmera para captura de fotos de avaliação postural com grid de alinhamento."
+          "cameraPermission": "Permitir acesso para captura de fotos de avaliação postural e acompanhamento clínico de condições do paciente."
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "Permitir acesso à galeria para importação de fotos de avaliação postural."
+          "photosPermission": "Permitir acesso para captura de fotos de avaliação postural e acompanhamento clínico de condições do paciente."
         }
       ]
     ],

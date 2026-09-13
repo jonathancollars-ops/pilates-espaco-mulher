@@ -1,4 +1,4 @@
-﻿require('./mock-rn.cjs');
+require('./mock-rn.cjs');
 require('tsx/cjs');
 
 const { test, describe } = require('node:test');
@@ -290,8 +290,7 @@ describe('M5 Security & Data Privacy Suite', () => {
 
       assert.equal(/\bcpf\b/i.test(nonCommentLines), false, 'CPF must not exist in patient model');
       assert.equal(/\bcep\b/i.test(nonCommentLines), false, 'CEP must not exist in patient model');
-      assert.equal(/estado\s*civil/i.test(nonCommentLines), false, 'Estado Civil must not exist in patient model');
-      assert.equal(/marital/i.test(nonCommentLines), false, 'marital must not exist in patient model');
+      assert.ok(/marital_status/.test(nonCommentLines), 'marital_status must exist in patient model');
     });
 
     test('Database schema DDL excludes CPF, CEP, and Estado Civil', () => {
@@ -421,6 +420,131 @@ describe('M5 Security & Data Privacy Suite', () => {
       assert.ok(gitignoreContent.includes('*.db'));
       assert.ok(gitignoreContent.includes('*.sqlite'));
       assert.ok(gitignoreContent.includes('backup*.json'));
+    });
+  });
+
+  describe('5. Filesystem Media Sandboxing & LGPD Deletion Audit', () => {
+    const appJsonPath = path.join(projectRoot, 'app.json');
+    const appJson = JSON.parse(fs.readFileSync(appJsonPath, 'utf8'));
+
+    test('app.json permissions contain explicit clinical purpose descriptions in Portuguese', () => {
+      const ios = appJson.expo.ios.infoPlist;
+      const expectedSnippet = 'Permitir acesso para captura de fotos de avaliação postural e acompanhamento clínico de condições do paciente.';
+
+      assert.equal(ios.NSCameraUsageDescription, expectedSnippet);
+      assert.equal(ios.NSPhotoLibraryUsageDescription, expectedSnippet);
+
+      const plugins = appJson.expo.plugins;
+      const cameraPlugin = plugins.find((p) => Array.isArray(p) && p[0] === 'expo-camera');
+      assert.ok(cameraPlugin, 'expo-camera plugin must exist');
+      assert.equal(cameraPlugin[1].cameraPermission, expectedSnippet);
+
+      const pickerPlugin = plugins.find((p) => Array.isArray(p) && p[0] === 'expo-image-picker');
+      assert.ok(pickerPlugin, 'expo-image-picker plugin must exist');
+      assert.equal(pickerPlugin[1].photosPermission, expectedSnippet);
+    });
+
+    test('Patient deletion cascades to local avatar and condition photo disk cleanup', async () => {
+      const { patientRepository } = require('../src/database/repositories/patientRepository.ts');
+      const mockFs = require('./mocks/expo-file-system.cjs');
+      const deletedUris = [];
+      const origDelete = mockFs.deleteAsync;
+      mockFs.deleteAsync = async (uri) => {
+        deletedUris.push(uri);
+      };
+
+      try {
+        const mockDb = {
+          async getFirstAsync(sql, params) {
+            if (sql.includes('FROM patients WHERE id = ?')) {
+              return { id: 'pat-del-test', name: 'Teste', avatar_uri: 'file:///data/user/0/com.espacomulher.pilates/files/avatars/test.jpg' };
+            }
+            return null;
+          },
+          async getAllAsync(sql, params) {
+            if (sql.includes('FROM patient_condition_photos WHERE patient_id = ?')) {
+              return [
+                { photo_uri: 'file:///data/user/0/com.espacomulher.pilates/files/condition_photos/cond1.jpg' },
+                { photo_uri: 'file:///data/user/0/com.espacomulher.pilates/files/condition_photos/cond2.jpg' },
+              ];
+            }
+            return [];
+          },
+          async runAsync(sql, params) {
+            return { changes: 1 };
+          },
+        };
+
+        const result = await patientRepository.delete('pat-del-test', mockDb);
+        assert.equal(result, true);
+        assert.equal(deletedUris.includes('file:///data/user/0/com.espacomulher.pilates/files/avatars/test.jpg'), true);
+        assert.equal(deletedUris.includes('file:///data/user/0/com.espacomulher.pilates/files/condition_photos/cond1.jpg'), true);
+        assert.equal(deletedUris.includes('file:///data/user/0/com.espacomulher.pilates/files/condition_photos/cond2.jpg'), true);
+      } finally {
+        mockFs.deleteAsync = origDelete;
+      }
+    });
+
+    test('Condition photo deletion cleans up physical image file from disk', async () => {
+      const { conditionPhotoRepository } = require('../src/database/repositories/conditionPhotoRepository.ts');
+      const mockFs = require('./mocks/expo-file-system.cjs');
+      const deletedUris = [];
+      const origDelete = mockFs.deleteAsync;
+      mockFs.deleteAsync = async (uri) => {
+        deletedUris.push(uri);
+      };
+
+      try {
+        const mockDb = {
+          async getFirstAsync(sql, params) {
+            if (sql.includes('FROM patient_condition_photos WHERE id = ?')) {
+              return { id: 'photo-del-1', patient_id: 'pat-1', photo_uri: 'file:///data/user/0/com.espacomulher.pilates/files/condition_photos/cond_single.jpg' };
+            }
+            return null;
+          },
+          async runAsync(sql, params) {
+            return { changes: 1 };
+          },
+        };
+
+        const result = await conditionPhotoRepository.deleteById('photo-del-1', mockDb);
+        assert.equal(result, true);
+        assert.equal(deletedUris.includes('file:///data/user/0/com.espacomulher.pilates/files/condition_photos/cond_single.jpg'), true);
+      } finally {
+        mockFs.deleteAsync = origDelete;
+      }
+    });
+
+    test('Report generation HTML strictly sanitizes free-text and initials against XSS', () => {
+      const patient = {
+        id: 'pat-xss',
+        name: '<img src=x onerror=alert(1)>',
+        phone: '999999999',
+        profession: '<script>alert("prof")</script>',
+        activity_time: '<b>10h</b>',
+        marital_status: '<script>alert("marital")</script>',
+        insurance: '<script>alert("insurance")</script>',
+      };
+
+      const html = generateClinicalReportHtml({
+        patient,
+        conditionPhotos: [
+          {
+            id: 'ph-1',
+            patient_id: 'pat-xss',
+            photo_uri: 'file:///photo.jpg',
+            category: '<script>alert("cat")</script>',
+            title: '<script>alert("title")</script>',
+            notes: '<script>alert("notes")</script>',
+            date: '2026-01-01',
+            created_at: '2026-01-01',
+          },
+        ],
+      });
+
+      assert.equal(html.includes('<script>'), false, 'HTML report must not contain unescaped script tags');
+      assert.equal(html.includes('<img src=x'), false, 'HTML report must not contain unescaped img tags with handlers');
+      assert.equal(html.includes('&lt;script&gt;'), true, 'Script tags must be escaped to &lt;script&gt;');
     });
   });
 

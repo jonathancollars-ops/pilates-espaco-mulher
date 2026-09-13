@@ -1,6 +1,6 @@
 {
   "name": "pilates-espaco-mulher",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Aplicativo mobile nativo para avaliação fisioterapêutica e prescrição de Pilates - Dra. Rogéria Collares",
   "main": "index.ts",
   "scripts": {

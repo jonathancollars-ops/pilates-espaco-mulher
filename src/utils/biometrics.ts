@@ -253,3 +253,251 @@ export function analyzeSegmentalSymmetry(right: number, left: number): Segmental
     dominantSide,
   };
 }
+
+export interface AbdominalCircumferenceEvaluation {
+  value: number;
+  classification: 'Adequado' | 'Aumentado' | 'Muito Aumentado';
+  color: string;
+  description: string;
+}
+
+/**
+ * 7. Abdominal Circumference Classification (OMS / ABESO)
+ * Evaluates cardiovascular and metabolic risk based on waist circumference.
+ */
+export function classifyAbdominalCircumference(
+  cm: number,
+  sex: 'female' | 'male' = 'female'
+): AbdominalCircumferenceEvaluation {
+  if (sex === 'female') {
+    if (cm < 80) {
+      return {
+        value: cm,
+        classification: 'Adequado',
+        color: Colors.success,
+        description: 'Risco cardiovascular não aumentado',
+      };
+    }
+    if (cm <= 88) {
+      return {
+        value: cm,
+        classification: 'Aumentado',
+        color: Colors.warning,
+        description: 'Risco cardiovascular aumentado',
+      };
+    }
+    return {
+      value: cm,
+      classification: 'Muito Aumentado',
+      color: Colors.accent,
+      description: 'Risco cardiovascular substancialmente aumentado',
+    };
+  }
+
+  if (cm < 94) {
+    return {
+      value: cm,
+      classification: 'Adequado',
+      color: Colors.success,
+      description: 'Risco cardiovascular não aumentado',
+    };
+  }
+  if (cm <= 102) {
+    return {
+      value: cm,
+      classification: 'Aumentado',
+      color: Colors.warning,
+      description: 'Risco cardiovascular aumentado',
+    };
+  }
+  return {
+    value: cm,
+    classification: 'Muito Aumentado',
+    color: Colors.accent,
+    description: 'Risco cardiovascular substancialmente aumentado',
+  };
+}
+
+export interface BodyFatClassification {
+  value: number;
+  classification:
+    | 'Excelente / Baixo'
+    | 'Bom'
+    | 'Adequado / Médio'
+    | 'Moderadamente Alto'
+    | 'Alto / Risco'
+    | 'Gordura Essencial';
+  color: string;
+  description: string;
+}
+
+/**
+ * 8. Body Fat Percentage Classification (Pollock / Jackson & Pollock)
+ */
+export function classifyBodyFatPercent(
+  fatPct: number,
+  sex: 'female' | 'male' = 'female'
+): BodyFatClassification {
+  if (sex === 'female') {
+    if (fatPct < 14) {
+      return {
+        value: fatPct,
+        classification: 'Gordura Essencial',
+        color: Colors.warning,
+        description: 'Gordura essencial mínima (risco de amenorreia)',
+      };
+    }
+    if (fatPct <= 20) {
+      return {
+        value: fatPct,
+        classification: 'Excelente / Baixo',
+        color: Colors.success,
+        description: 'Excelente composição corporal / nível atlético',
+      };
+    }
+    if (fatPct <= 24) {
+      return {
+        value: fatPct,
+        classification: 'Bom',
+        color: Colors.success,
+        description: 'Bom condicionamento físico e metabólico',
+      };
+    }
+    if (fatPct <= 28) {
+      return {
+        value: fatPct,
+        classification: 'Adequado / Médio',
+        color: Colors.success,
+        description: 'Nível adequado e saudável para a população em geral',
+      };
+    }
+    if (fatPct <= 32) {
+      return {
+        value: fatPct,
+        classification: 'Moderadamente Alto',
+        color: Colors.warning,
+        description: 'Atenção: percentual de gordura corporal elevado',
+      };
+    }
+    return {
+      value: fatPct,
+      classification: 'Alto / Risco',
+      color: Colors.accent,
+      description: 'Percentual de gordura em faixa de sobrepeso/obesidade',
+    };
+  }
+
+  if (fatPct < 6) {
+    return {
+      value: fatPct,
+      classification: 'Gordura Essencial',
+      color: Colors.warning,
+      description: 'Gordura essencial mínima',
+    };
+  }
+  if (fatPct <= 14) {
+    return {
+      value: fatPct,
+      classification: 'Excelente / Baixo',
+      color: Colors.success,
+      description: 'Excelente composição corporal / nível atlético',
+    };
+  }
+  if (fatPct <= 17) {
+    return {
+      value: fatPct,
+      classification: 'Bom',
+      color: Colors.success,
+      description: 'Bom condicionamento físico',
+    };
+  }
+  if (fatPct <= 24) {
+    return {
+      value: fatPct,
+      classification: 'Adequado / Médio',
+      color: Colors.success,
+      description: 'Nível adequado e saudável',
+    };
+  }
+  if (fatPct <= 28) {
+    return {
+      value: fatPct,
+      classification: 'Moderadamente Alto',
+      color: Colors.warning,
+      description: 'Percentual de gordura moderadamente elevado',
+    };
+  }
+  return {
+    value: fatPct,
+    classification: 'Alto / Risco',
+    color: Colors.accent,
+    description: 'Percentual de gordura em faixa de sobrepeso/obesidade',
+  };
+}
+
+export interface AgeComparisonResult {
+  difference: number;
+  status: 'younger' | 'equal' | 'older';
+  label: string;
+  color: string;
+}
+
+/**
+ * 9. Chronological Age vs Body/Metabolic Age Comparative
+ */
+export function compareAges(chronologicalAge: number, bodyAge: number): AgeComparisonResult {
+  if (bodyAge < chronologicalAge) {
+    return {
+      difference: Math.abs(chronologicalAge - bodyAge),
+      status: 'younger',
+      label: 'Idade corporal menor que a cronológica (Excelente vitalidade metabólica)',
+      color: Colors.success,
+    };
+  }
+  if (bodyAge === chronologicalAge) {
+    return {
+      difference: 0,
+      status: 'equal',
+      label: 'Idade corporal compatível com a cronológica',
+      color: Colors.primary,
+    };
+  }
+  return {
+    difference: Math.abs(bodyAge - chronologicalAge),
+    status: 'older',
+    label: 'Idade corporal superior à cronológica (Requer atenção metabólica)',
+    color: Colors.accent,
+  };
+}
+
+/**
+ * Reference tables for clinical report exhibition and patient education
+ */
+export const ABDOMINAL_CIRCUMFERENCE_REFERENCE_TABLE = [
+  { sex: 'Mulheres', normal: '< 80 cm', increased: '80 a 88 cm', veryHigh: '> 88 cm' },
+  { sex: 'Homens', normal: '< 94 cm', increased: '94 a 102 cm', veryHigh: '> 102 cm' },
+];
+
+export const BODY_FAT_REFERENCE_TABLE = [
+  { classification: 'Excelente / Baixo', female: '< 20.0%', male: '< 14.0%' },
+  { classification: 'Bom', female: '20.1 a 24.0%', male: '14.1 a 17.0%' },
+  { classification: 'Adequado / Médio', female: '24.1 a 28.0%', male: '17.1 a 24.0%' },
+  { classification: 'Moderadamente Alto', female: '28.1 a 32.0%', male: '24.1 a 28.0%' },
+  { classification: 'Alto / Risco', female: '> 32.0%', male: '> 28.0%' },
+];
+
+export const BMI_REFERENCE_TABLE = [
+  { classification: 'Abaixo do peso', range: '< 18.5 kg/m²', risk: 'Baixo (risco de desnutrição)' },
+  { classification: 'Normal / Eutrofia', range: '18.5 a 24.9 kg/m²', risk: 'Menor risco metabólico' },
+  { classification: 'Sobrepeso', range: '25.0 a 29.9 kg/m²', risk: 'Risco aumentado' },
+  { classification: 'Obesidade Grau I', range: '30.0 a 34.9 kg/m²', risk: 'Risco moderado' },
+  { classification: 'Obesidade Grau II', range: '35.0 a 39.9 kg/m²', risk: 'Risco grave' },
+  { classification: 'Obesidade Grau III', range: '≥ 40.0 kg/m²', risk: 'Risco muito grave' },
+];
+
+export const VISCERAL_FAT_REFERENCE_TABLE = [
+  { level: '1 a 9', classification: 'Normal / Saudável', meaning: 'Nível adequado de gordura intra-abdominal' },
+  { level: '10 a 14', classification: 'Elevado', meaning: 'Atenção: aumento da gordura visceral' },
+  { level: '15 a 59', classification: 'Muito Elevado', meaning: 'Risco cardiovascular e metabólico elevado' },
+];
+

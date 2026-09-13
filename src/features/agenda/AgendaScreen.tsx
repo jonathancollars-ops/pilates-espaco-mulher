@@ -20,6 +20,7 @@ import {
   TouchableOpacity,
   ScrollView,
   RefreshControl,
+  Image,
   Alert,
   Linking,
   Platform,
@@ -47,6 +48,13 @@ import {
   formatDateBR,
   formatAppointmentConfirmationWhatsApp,
 } from '../../utils/formatters';
+
+function getInitials(name: string): string {
+  if (!name) return 'P';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
 
 export interface AgendaScreenProps {
   onNavigateToPatient?: (patientId: string) => void;
@@ -323,6 +331,9 @@ export function AgendaScreen({
     );
   };
 
+  const currentPatient = patients.find((p) => p.id === currentAppointment?.patient_id);
+  const nextPatient = patients.find((p) => p.id === nextAppointment?.patient_id);
+
   return (
     <LargeTitleLayout
       title="Agenda"
@@ -394,12 +405,25 @@ export function AgendaScreen({
               }}
               style={styles.currentPatientTouchable}
             >
-              <Text style={styles.currentPatientName}>{currentAppointment.patient_name}</Text>
-              <View style={styles.currentTimeRow}>
-                <Ionicons name="time-outline" size={15} color={Colors.textSecondary} />
-                <Text style={styles.currentTimeText}>
-                  {currentAppointment.start_time} - {currentAppointment.end_time} • {getSessionTypeLabel(currentAppointment.type)}
-                </Text>
+              <View style={styles.currentPatientHeaderRow}>
+                {/* Patient Avatar (Photo or Initials) */}
+                <View style={styles.agendaAvatarCircle}>
+                  {currentPatient?.avatar_uri ? (
+                    <Image source={{ uri: currentPatient.avatar_uri }} style={styles.agendaAvatarImage} />
+                  ) : (
+                    <Text style={styles.agendaAvatarText}>{getInitials(currentAppointment.patient_name)}</Text>
+                  )}
+                </View>
+
+                <View style={styles.currentPatientInfo}>
+                  <Text style={styles.currentPatientName}>{currentAppointment.patient_name}</Text>
+                  <View style={styles.currentTimeRow}>
+                    <Ionicons name="time-outline" size={15} color={Colors.textSecondary} />
+                    <Text style={styles.currentTimeText}>
+                      {currentAppointment.start_time} - {currentAppointment.end_time} • {getSessionTypeLabel(currentAppointment.type)}
+                    </Text>
+                  </View>
+                </View>
               </View>
 
               {/* Quick Presence Action */}
@@ -429,7 +453,15 @@ export function AgendaScreen({
           {/* Next Patient Sub-line */}
           <View style={styles.nextPatientDivider} />
           <View style={styles.nextPatientRow}>
-            <Ionicons name="arrow-forward-circle-outline" size={16} color={Colors.textSecondary} />
+            {nextAppointment && nextPatient?.avatar_uri ? (
+              <Image source={{ uri: nextPatient.avatar_uri }} style={styles.nextPatientAvatarImage} />
+            ) : nextAppointment ? (
+              <View style={styles.nextPatientAvatarCircle}>
+                <Text style={styles.nextPatientAvatarText}>{getInitials(nextAppointment.patient_name)}</Text>
+              </View>
+            ) : (
+              <Ionicons name="arrow-forward-circle-outline" size={16} color={Colors.textSecondary} />
+            )}
             <Text style={styles.nextPatientLabel}>A Seguir:</Text>
             <Text style={styles.nextPatientValue} numberOfLines={1}>
               {nextAppointment
@@ -683,6 +715,35 @@ const styles = StyleSheet.create({
   currentPatientTouchable: {
     paddingVertical: 2,
   },
+  currentPatientHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  agendaAvatarCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: Colors.primarySubtle,
+    borderWidth: 1,
+    borderColor: '#E6D8EF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  agendaAvatarImage: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+  },
+  agendaAvatarText: {
+    ...Typography.headline,
+    color: Colors.primaryDark,
+    fontWeight: '700',
+  },
+  currentPatientInfo: {
+    flex: 1,
+  },
   currentPatientName: {
     ...Typography.title3,
     color: Colors.textPrimary,
@@ -692,12 +753,32 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    marginTop: 4,
-    marginBottom: Spacing.sm,
+    marginTop: 2,
+    marginBottom: Spacing.xs,
   },
   currentTimeText: {
     ...Typography.subhead,
     color: Colors.textSecondary,
+  },
+  nextPatientAvatarCircle: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: Colors.primarySubtle,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  nextPatientAvatarImage: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+  },
+  nextPatientAvatarText: {
+    ...Typography.caption2,
+    fontSize: 10,
+    color: Colors.primaryDark,
+    fontWeight: '700',
   },
   quickActionRow: {
     flexDirection: 'row',

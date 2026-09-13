@@ -36,6 +36,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  TouchableOpacity,
+  Image,
   Alert,
   ActivityIndicator,
   Keyboard,
@@ -43,6 +45,7 @@ import {
   ReturnKeyTypeOptions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { Colors, Typography, Spacing, Radii, Shadows, Layout } from '../../design-system/tokens';
 import { Haptics } from '../../design-system/Haptics';
 import { SegmentedControl } from '../../design-system/SegmentedControl';
@@ -62,13 +65,22 @@ import {
   CreatePatientInput,
   UpdatePatientInput,
   PatientStatus,
+  MaritalStatus,
 } from '../../types/patient';
 
 // ---------------------------------------------------------------------------
 // Props & Type Definitions
 // ---------------------------------------------------------------------------
 
-export type InsuranceOption = 'Particular' | 'Unimed' | 'Bradesco' | 'Outro';
+export type InsuranceOption =
+  | 'Particular'
+  | 'Totalpass'
+  | 'Gympass'
+  | 'IBNJ'
+  | 'Outros'
+  | 'Outro'
+  | 'Unimed'
+  | 'Bradesco';
 
 export interface PatientFormModalProps {
   visible: boolean;
@@ -227,10 +239,14 @@ export function PatientFormModal({
   const isEditing = Boolean(patient);
 
   // Form Fields State
+  const [avatarUri, setAvatarUri] = useState('');
   const [name, setName] = useState('');
   const [birthdateText, setBirthdateText] = useState('');
   const [ageText, setAgeText] = useState('');
   const [isAgeAutoCalculated, setIsAgeAutoCalculated] = useState(false);
+  const [profession, setProfession] = useState('');
+  const [activityTime, setActivityTime] = useState('');
+  const [maritalStatus, setMaritalStatus] = useState<MaritalStatus | null>('Solteira');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
   const [neighborhood, setNeighborhood] = useState('');
@@ -246,8 +262,25 @@ export function PatientFormModal({
   const [saving, setSaving] = useState(false);
 
   // Insurance segmented values
-  const insuranceOptions: readonly InsuranceOption[] = ['Particular', 'Unimed', 'Bradesco', 'Outro'];
-  const currentInsuranceIndex = insuranceOptions.indexOf(insuranceType);
+  const insuranceOptions: readonly InsuranceOption[] = [
+    'Particular',
+    'Totalpass',
+    'Gympass',
+    'IBNJ',
+    'Outros',
+  ];
+  const currentInsuranceIndex = insuranceOptions.indexOf(
+    insuranceType === 'Outro' ? 'Outros' : insuranceType
+  );
+
+  const maritalStatusOptions: readonly MaritalStatus[] = [
+    'Solteira',
+    'Casada',
+    'União Estável',
+    'Divorciada',
+    'Viúva',
+    'Outro',
+  ];
 
   // Status options (for edit mode)
   const statusOptions = ['Em Tratamento', 'Alta Clínica', 'Inativo'] as const;
@@ -259,11 +292,15 @@ export function PatientFormModal({
     if (!visible) return;
 
     if (patient) {
+      setAvatarUri(patient.avatar_uri || '');
       setName(patient.name || '');
       setPhone(formatPhone(patient.phone || ''));
       setBirthdateText(patient.birthdate ? formatDateBR(patient.birthdate) : '');
       setAgeText(patient.age != null ? String(patient.age) : '');
       setIsAgeAutoCalculated(Boolean(patient.birthdate && patient.age != null));
+      setProfession(patient.profession || '');
+      setActivityTime(patient.activity_time || '');
+      setMaritalStatus((patient.marital_status as MaritalStatus) || 'Solteira');
       setAddress(patient.address || '');
       setNeighborhood(patient.neighborhood || '');
       setCityState(patient.city_state || 'Rio das Ostras - RJ');
@@ -271,22 +308,26 @@ export function PatientFormModal({
 
       // Resolve insurance
       const pInsurance = patient.insurance || 'Particular';
-      if (pInsurance === 'Particular' || pInsurance === 'Unimed' || pInsurance === 'Bradesco') {
+      if (['Particular', 'Totalpass', 'Gympass', 'IBNJ', 'Unimed', 'Bradesco'].includes(pInsurance)) {
         setInsuranceType(pInsurance as InsuranceOption);
         setInsuranceOther('');
       } else {
-        setInsuranceType('Outro');
+        setInsuranceType('Outros');
         setInsuranceOther(pInsurance);
       }
 
       setStatus(patient.status || 'active');
     } else {
       // Clean defaults for new patient
+      setAvatarUri('');
       setName('');
       setPhone('');
       setBirthdateText('');
       setAgeText('');
       setIsAgeAutoCalculated(false);
+      setProfession('');
+      setActivityTime('');
+      setMaritalStatus('Solteira');
       setAddress('');
       setNeighborhood('');
       setCityState('Rio das Ostras - RJ'); // Authoritative default
@@ -300,6 +341,84 @@ export function PatientFormModal({
     setIsDirty(false);
     setSaving(false);
   }, [visible, patient]);
+
+  // Photo Picker actions
+  const handleAvatarCamera = async () => {
+    try {
+      const { status: permStatus } = await ImagePicker.requestCameraPermissionsAsync();
+      if (permStatus !== 'granted') {
+        Alert.alert('Permissão Necessária', 'Permita o acesso à câmera para tirar a foto de perfil.');
+        return;
+      }
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.7,
+      });
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setAvatarUri(result.assets[0].uri);
+        setIsDirty(true);
+        Haptics.success();
+      }
+    } catch (err: any) {
+      Haptics.error();
+      Alert.alert('Erro', err?.message || 'Não foi possível capturar a foto.');
+    }
+  };
+
+  const handleAvatarGallery = async () => {
+    try {
+      const { status: permStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (permStatus !== 'granted') {
+        Alert.alert('Permissão Necessária', 'Permita o acesso à galeria para selecionar a foto de perfil.');
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.7,
+      });
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setAvatarUri(result.assets[0].uri);
+        setIsDirty(true);
+        Haptics.success();
+      }
+    } catch (err: any) {
+      Haptics.error();
+      Alert.alert('Erro', err?.message || 'Não foi possível carregar da galeria.');
+    }
+  };
+
+  const handleAvatarPress = () => {
+    Haptics.selection();
+    const options: any[] = [
+      { text: 'Tirar Foto (Câmera)', onPress: handleAvatarCamera },
+      { text: 'Escolher da Galeria', onPress: handleAvatarGallery },
+    ];
+    if (avatarUri) {
+      options.push({
+        text: 'Remover Foto',
+        style: 'destructive',
+        onPress: () => {
+          setAvatarUri('');
+          setIsDirty(true);
+          Haptics.selection();
+        },
+      });
+    }
+    options.push({ text: 'Cancelar', style: 'cancel' });
+    Alert.alert('Foto de Perfil', 'Selecione a origem da foto da paciente:', options);
+  };
+
+  // Initials for avatar fallback
+  const initials = name
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0].toUpperCase())
+    .join('') || 'P';
 
   // Name change handler
   const handleNameChange = useCallback((text: string) => {
@@ -363,7 +482,7 @@ export function PatientFormModal({
     Haptics.selection();
     setInsuranceType(val);
     setIsDirty(true);
-    if (val !== 'Outro') {
+    if (val !== 'Outro' && val !== 'Outros') {
       setInsuranceOther('');
       setErrors((prev) => ({ ...prev, insuranceOther: undefined }));
     }
@@ -412,8 +531,8 @@ export function PatientFormModal({
       }
     }
 
-    // 6. Convênio 'Outro'
-    if (insuranceType === 'Outro' && !insuranceOther.trim()) {
+    // 6. Convênio 'Outro' ou 'Outros'
+    if ((insuranceType === 'Outro' || insuranceType === 'Outros') && !insuranceOther.trim()) {
       nextErrors.insuranceOther = 'Informe o nome do convênio';
     }
 
@@ -459,7 +578,7 @@ export function PatientFormModal({
 
     setSaving(true);
     try {
-      const resolvedInsurance = insuranceType === 'Outro'
+      const resolvedInsurance = (insuranceType === 'Outro' || insuranceType === 'Outros')
         ? (insuranceOther.trim() || 'Outro')
         : insuranceType;
 
@@ -485,6 +604,10 @@ export function PatientFormModal({
           city_state: resolvedCityState,
           email: email.trim() || null,
           insurance: resolvedInsurance,
+          profession: profession.trim() || null,
+          activity_time: activityTime.trim() || null,
+          marital_status: maritalStatus || null,
+          avatar_uri: avatarUri || null,
           status,
         };
         await onSave(updateData, patient.id);
@@ -499,6 +622,10 @@ export function PatientFormModal({
           city_state: resolvedCityState,
           email: email.trim() || null,
           insurance: resolvedInsurance,
+          profession: profession.trim() || null,
+          activity_time: activityTime.trim() || null,
+          marital_status: maritalStatus || null,
+          avatar_uri: avatarUri || null,
           status: 'active',
         };
         await onSave(createData);
@@ -563,6 +690,36 @@ export function PatientFormModal({
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
+          {/* AVATAR / FOTO DE PERFIL */}
+          <View style={styles.avatarPickerContainer}>
+            <TouchableOpacity
+              onPress={handleAvatarPress}
+              style={styles.avatarCircleButton}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Foto de perfil da paciente"
+            >
+              {avatarUri ? (
+                <Image source={{ uri: avatarUri }} style={styles.avatarImagePreview} />
+              ) : (
+                <View style={styles.avatarFallbackBox}>
+                  <Text style={styles.avatarInitialsText}>{initials}</Text>
+                </View>
+              )}
+              <View style={styles.avatarEditBadge}>
+                <Ionicons name="camera" size={14} color="#FFFFFF" />
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleAvatarPress}
+              style={styles.avatarActionLabelButton}
+            >
+              <Text style={styles.avatarActionLabelText}>
+                {avatarUri ? 'Alterar Foto' : 'Adicionar Foto'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
           {/* SECTION 1: IDENTIFICAÇÃO PESSOAL */}
           <InsetGroup header="IDENTIFICAÇÃO PESSOAL">
             {/* 1. Nome Completo */}
@@ -621,11 +778,83 @@ export function PatientFormModal({
               }
               testID="input-patient-age"
             />
+
+            {/* 4. Status Conjugal */}
+            <View style={styles.segmentedContainer}>
+              <View style={styles.segmentedHeaderRow}>
+                <View style={[styles.iconWrapperSmall, { backgroundColor: Colors.primarySubtle }]}>
+                  <Ionicons name="heart-outline" size={16} color={Colors.primary} />
+                </View>
+                <Text style={styles.segmentedLabel}>Status Conjugal</Text>
+              </View>
+              <View style={styles.chipsRow}>
+                {maritalStatusOptions.map((opt) => {
+                  const isSelected = maritalStatus === opt;
+                  return (
+                    <TouchableOpacity
+                      key={opt}
+                      onPress={() => {
+                        Haptics.selection();
+                        setMaritalStatus(opt);
+                        setIsDirty(true);
+                      }}
+                      style={[styles.maritalChip, isSelected && styles.maritalChipSelected]}
+                      activeOpacity={0.7}
+                    >
+                      <Text
+                        style={[
+                          styles.maritalChipText,
+                          isSelected && styles.maritalChipTextSelected,
+                        ]}
+                      >
+                        {opt}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
+            {/* 5. Profissão */}
+            <InsetInputRow
+              label="Profissão"
+              value={profession}
+              onChangeText={(text) => {
+                setProfession(text);
+                setIsDirty(true);
+              }}
+              placeholder="Ex.: Arquiteta, Professora, Autônoma..."
+              icon="briefcase-outline"
+              iconColor={Colors.primary}
+              iconBackgroundColor={Colors.primarySubtle}
+              autoCapitalize="words"
+              testID="input-patient-profession"
+            />
+          </InsetGroup>
+
+          {/* SECTION: ROTINA & ATIVIDADE FÍSICA */}
+          <InsetGroup
+            header="ROTINA & ATIVIDADE FÍSICA"
+            footer="Detalhes sobre a rotina de exercícios, histórico e tempo de interrupção."
+          >
+            <InsetInputRow
+              label="Tempo de Atividade"
+              value={activityTime}
+              onChangeText={(text) => {
+                setActivityTime(text);
+                setIsDirty(true);
+              }}
+              placeholder="Ex.: Caminhada 3x/sem há 2 anos; parada há 4 meses..."
+              icon="fitness-outline"
+              iconColor={Colors.primary}
+              iconBackgroundColor={Colors.primarySubtle}
+              testID="input-patient-activity-time"
+            />
           </InsetGroup>
 
           {/* SECTION 2: CONTATO & CONVÊNIO */}
           <InsetGroup header="CONTATO & CONVÊNIO">
-            {/* 4. Telefone / WhatsApp */}
+            {/* 6. Telefone / WhatsApp */}
             <InsetInputRow
               label="Telefone / WhatsApp"
               value={phone}
@@ -641,7 +870,7 @@ export function PatientFormModal({
               testID="input-patient-phone"
             />
 
-            {/* 5. E-mail */}
+            {/* 7. E-mail */}
             <InsetInputRow
               label="E-mail (opcional)"
               value={email}
@@ -661,7 +890,7 @@ export function PatientFormModal({
               testID="input-patient-email"
             />
 
-            {/* 6. Convênio (Segmented Control) */}
+            {/* 8. Convênio (Segmented Control) */}
             <View style={styles.segmentedContainer}>
               <View style={styles.segmentedHeaderRow}>
                 <View style={[styles.iconWrapperSmall, { backgroundColor: Colors.primarySubtle }]}>
@@ -678,8 +907,8 @@ export function PatientFormModal({
               />
             </View>
 
-            {/* 6b. Conditional Sub-input for Convênio Outro */}
-            {insuranceType === 'Outro' && (
+            {/* 8b. Conditional Sub-input for Convênio Outro / Outros */}
+            {(insuranceType === 'Outro' || insuranceType === 'Outros') && (
               <InsetInputRow
                 label="Qual convênio?"
                 value={insuranceOther}
@@ -940,5 +1169,89 @@ const styles = StyleSheet.create({
   bottomButtonContainer: {
     marginTop: 12,
     marginHorizontal: Layout.insetGroupMarginHorizontal,
+  },
+  avatarPickerContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+  },
+  avatarCircleButton: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    backgroundColor: Colors.primarySubtle,
+    borderWidth: 2,
+    borderColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    ...Shadows.subtle,
+  },
+  avatarImagePreview: {
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+  },
+  avatarFallbackBox: {
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.primarySubtle,
+  },
+  avatarInitialsText: {
+    ...Typography.title1,
+    color: Colors.primaryDark,
+    fontWeight: '700',
+  },
+  avatarEditBadge: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: Colors.primary,
+    borderWidth: 2,
+    borderColor: Colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarActionLabelButton: {
+    marginTop: 8,
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+  },
+  avatarActionLabelText: {
+    ...Typography.subhead,
+    color: Colors.primary,
+    fontWeight: '600',
+  },
+  chipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 4,
+  },
+  maritalChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: Radii.pill,
+    backgroundColor: Colors.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+  },
+  maritalChipSelected: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  maritalChipText: {
+    ...Typography.caption1,
+    color: Colors.textPrimary,
+  },
+  maritalChipTextSelected: {
+    color: Colors.textInverse,
+    fontWeight: '600',
   },
 });

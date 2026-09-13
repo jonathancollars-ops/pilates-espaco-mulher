@@ -60,6 +60,8 @@ export const anamnesisRepository = {
     return {
       id: row.id,
       patient_id: row.patient_id,
+      main_complaint: row.main_complaint ?? null,
+      clinical_history: row.clinical_history ?? null,
       lab_tests: row.lab_tests ?? null,
       medications: row.medications ?? null,
       allergies: row.allergies ?? null,
@@ -76,6 +78,23 @@ export const anamnesisRepository = {
       created_at: row.created_at,
       updated_at: row.updated_at,
     };
+  },
+
+  /**
+   * Creates anamnesis for a patient. Supports both (patientId, data, explicitDb)
+   * and ({ patient_id, ...data }, explicitDb).
+   */
+  async create(
+    patientIdOrData: string | ({ patient_id: string } & UpsertAnamnesisInput & Record<string, any>),
+    dataOrDb?: UpsertAnamnesisInput | SQLiteDatabase,
+    explicitDb?: SQLiteDatabase
+  ): Promise<Anamnesis> {
+    if (typeof patientIdOrData === 'string') {
+      return this.upsert(patientIdOrData, dataOrDb as UpsertAnamnesisInput, explicitDb);
+    }
+    const { patient_id, ...rest } = patientIdOrData;
+    const db = dataOrDb as SQLiteDatabase | undefined;
+    return this.upsert(patient_id, rest as UpsertAnamnesisInput, db);
   },
 
   /**
@@ -101,12 +120,13 @@ export const anamnesisRepository = {
     if (existing) {
       await db.runAsync(
         `UPDATE anamnesis SET
-          lab_tests = ?, medications = ?, allergies = ?, surgeries = ?,
+          clinical_history = ?, lab_tests = ?, medications = ?, allergies = ?, surgeries = ?,
           fractures = ?, luxations = ?, pregnancies = ?, abortions = ?,
           physical_activity = ?, pain_complaints = ?, pain_intensity = ?,
           imaging_exams = ?, clinical_notes = ?, updated_at = ?
         WHERE patient_id = ?;`,
         [
+          (data.clinical_history !== undefined ? data.clinical_history : existing.clinical_history) ?? null,
           (data.lab_tests !== undefined ? data.lab_tests : existing.lab_tests) ?? null,
           (data.medications !== undefined ? data.medications : existing.medications) ?? null,
           (data.allergies !== undefined ? data.allergies : existing.allergies) ?? null,
@@ -129,14 +149,15 @@ export const anamnesisRepository = {
       const id = generateId();
       await db.runAsync(
         `INSERT INTO anamnesis (
-          id, patient_id, lab_tests, medications, allergies, surgeries,
+          id, patient_id, clinical_history, lab_tests, medications, allergies, surgeries,
           fractures, luxations, pregnancies, abortions, physical_activity,
           pain_complaints, pain_intensity, imaging_exams, clinical_notes,
           created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
         [
           id,
           patientId,
+          data.clinical_history ?? null,
           data.lab_tests ?? null,
           data.medications ?? null,
           data.allergies ?? null,

@@ -21,12 +21,22 @@ import {
 } from '../types/anamnesis';
 import { PosturalEvaluation } from '../types/postural';
 import { Bioimpedance } from '../types/bioimpedance';
+import { PatientConditionPhoto } from '../types/conditionPhoto';
+import {
+  classifyAbdominalCircumference,
+  compareAges,
+  ABDOMINAL_CIRCUMFERENCE_REFERENCE_TABLE,
+  BODY_FAT_REFERENCE_TABLE,
+  BMI_REFERENCE_TABLE,
+  VISCERAL_FAT_REFERENCE_TABLE,
+} from '../utils/biometrics';
 
 export interface ClinicalReportPayload {
   patient: Patient;
   anamnesis?: Anamnesis | null;
   postural?: PosturalEvaluation | null;
   bioimpedanceList?: Bioimpedance[] | null;
+  conditionPhotos?: PatientConditionPhoto[] | null;
   generatedAt?: string | Date;
 }
 
@@ -175,18 +185,31 @@ function renderStatusBadge(status: string): string {
 }
 
 /**
+ * Computes initials for avatar fallback.
+ */
+function getInitials(name?: string | null): string {
+  if (!name) return 'EM';
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return 'EM';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+/**
  * Generates the complete HTML5 document for the clinical report.
  */
 export function generateClinicalReportHtml(
   patientOrPayload: Patient | ClinicalReportPayload,
   anamnesisArg?: Anamnesis | null,
   posturalArg?: PosturalEvaluation | null,
-  bioimpedanceListArg?: Bioimpedance[] | null
+  bioimpedanceListArg?: Bioimpedance[] | null,
+  conditionPhotosArg?: PatientConditionPhoto[] | null
 ): string {
   let patient: Patient;
   let anamnesis: Anamnesis | null = null;
   let postural: PosturalEvaluation | null = null;
   let bioimpedanceList: Bioimpedance[] = [];
+  let conditionPhotos: PatientConditionPhoto[] = [];
   let generatedAt: string | Date = new Date();
 
   // Support both object payload and positional arguments
@@ -195,12 +218,14 @@ export function generateClinicalReportHtml(
     anamnesis = patientOrPayload.anamnesis ?? null;
     postural = patientOrPayload.postural ?? null;
     bioimpedanceList = patientOrPayload.bioimpedanceList ?? [];
+    conditionPhotos = patientOrPayload.conditionPhotos ?? [];
     if (patientOrPayload.generatedAt) generatedAt = patientOrPayload.generatedAt;
   } else {
     patient = patientOrPayload;
     anamnesis = anamnesisArg ?? null;
     postural = posturalArg ?? null;
     bioimpedanceList = bioimpedanceListArg ?? [];
+    conditionPhotos = conditionPhotosArg ?? [];
   }
 
   const formattedGeneratedAt = formatDateTimeBR(generatedAt);
@@ -220,6 +245,25 @@ export function generateClinicalReportHtml(
   const pregnancies = parseSafeJson<PregnancyEntry>(anamnesis?.pregnancies);
   const abortions = parseSafeJson<AbortionEntry>(anamnesis?.abortions);
   const painComplaints = parseSafeJson<PainComplaintEntry[]>(anamnesis?.pain_complaints);
+
+  const hasPregnancy = pregnancies?.has === 'sim' || (pregnancies as any)?.has_pregnancies === true;
+  const pregnancyQty = (pregnancies as any)?.quantity ?? (pregnancies as any)?.count ?? 1;
+  const rawDelivery = (pregnancies as any)?.delivery_type;
+  let deliveryTypeDisplay = rawDelivery || 'Parto';
+  if (rawDelivery === 'cesarean') {
+    deliveryTypeDisplay = 'Cesárea';
+  } else if (rawDelivery === 'normal') {
+    deliveryTypeDisplay = 'Normal';
+  } else if (rawDelivery === 'both') {
+    deliveryTypeDisplay = 'Normal e Cesárea';
+  }
+  const lastPregTime = (pregnancies as any)?.last_pregnancy_time;
+  const pregnancyNotes = (pregnancies as any)?.complications || (pregnancies as any)?.notes;
+
+  const hasAbortion = abortions?.has === 'sim' || (abortions as any)?.has_abortions === true;
+  const abortionQty = (abortions as any)?.quantity ?? (abortions as any)?.count ?? 1;
+  const abortionTime = (abortions as any)?.gestational_age || (abortions as any)?.time;
+  const abortionNotes = (abortions as any)?.notes;
 
   // Sort bioimpedance chronologically (oldest to newest for evolution)
   const sortedBioimpedance = [...bioimpedanceList].sort((a, b) => {
@@ -548,33 +592,61 @@ export function generateClinicalReportHtml(
         ${renderStatusBadge(patient.status)}
       </div>
       <div class="section-body">
-        <div class="data-grid">
-          <div class="data-row">
-            <div class="data-cell col-2" style="padding-bottom: 8px;">
-              <div class="data-label">Nome Completo</div>
-              <div class="data-value data-value-highlight" style="font-size: 11pt;">${escapeHtml(patient.name)}</div>
+        <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #E8E0EC;">
+          ${patient.avatar_uri ? `
+            <img src="${escapeHtml(patient.avatar_uri)}" alt="${escapeHtml(patient.name)}" style="width: 58px; height: 58px; border-radius: 50%; object-fit: cover; border: 2.5px solid #9B6CBA; flex-shrink: 0;" onerror="this.style.display='none';" />
+          ` : `
+            <div style="width: 58px; height: 58px; border-radius: 50%; background-color: #F0E6F6; color: #7A4F94; display: flex; align-items: center; justify-content: center; font-size: 15pt; font-weight: 700; border: 2px solid #D4BFE3; flex-shrink: 0;">
+              ${escapeHtml(getInitials(patient.name))}
             </div>
-            <div class="data-cell col-4" style="padding-bottom: 8px;">
-              <div class="data-label">Data de Nascimento</div>
-              <div class="data-value">${birthdateFormatted}</div>
-            </div>
-            <div class="data-cell col-4" style="padding-bottom: 8px;">
-              <div class="data-label">Idade Atual</div>
-              <div class="data-value">${ageDisplay}</div>
+          `}
+          <div style="flex: 1;">
+            <div class="data-value-highlight" style="font-size: 12pt; margin-bottom: 2px;">${escapeHtml(patient.name)}</div>
+            <div style="font-size: 9pt; color: #6E6573;">
+              Nascimento: <strong>${birthdateFormatted}</strong> • Idade: <strong>${ageDisplay}</strong>
+              ${patient.profession ? ` • Profissão: <strong style="color: #7A4F94;">${escapeHtml(patient.profession)}</strong>` : ''}
             </div>
           </div>
+          <div>
+            <span style="display:inline-block; padding:3px 10px; border-radius:12px; font-size:8.5pt; font-weight:700; color:#7A4F94; background-color:#F0E6F6; border:1px solid #D4BFE3;">
+              ${escapeHtml(patient.insurance || 'Particular')}
+            </span>
+          </div>
+        </div>
+
+        <div class="data-grid">
           <div class="data-row">
-            <div class="data-cell col-2">
+            <div class="data-cell col-3">
               <div class="data-label">Telefone de Contato</div>
               <div class="data-value">${escapeHtml(patient.phone)}</div>
             </div>
-            <div class="data-cell col-2">
-              <div class="data-label">Convênio / Modalidade</div>
-              <div class="data-value">${escapeHtml(patient.insurance || 'Particular')}</div>
+            <div class="data-cell col-3">
+              <div class="data-label">E-mail</div>
+              <div class="data-value">${escapeHtml(patient.email || 'Não informado')}</div>
+            </div>
+            <div class="data-cell col-3">
+              <div class="data-label">Tempo de Atividade / Rotina</div>
+              <div class="data-value">${escapeHtml(patient.activity_time || 'Não informado')}</div>
             </div>
           </div>
-          <div class="data-row">
-            <div class="data-cell" style="padding-top: 8px; width: 100%;" colspan="3">
+          ${(patient.marital_status || patient.profession) ? `
+            <div class="data-row" style="padding-top: 6px;">
+              <div class="data-cell col-3">
+                <div class="data-label">Estado Civil</div>
+                <div class="data-value">${escapeHtml(patient.marital_status || 'Não informado')}</div>
+              </div>
+              <div class="data-cell col-3">
+                <div class="data-label">Profissão</div>
+                <div class="data-value">${escapeHtml(patient.profession || 'Não informada')}</div>
+              </div>
+              <div class="data-cell col-3">
+                <div class="data-label">Convênio / Modalidade</div>
+                <div class="data-value">${escapeHtml(patient.insurance || 'Particular')}</div>
+              </div>
+            </div>
+          ` : ''}
+          <div class="data-row" style="padding-top: 6px;">
+            <div class="data-cell" style="width: 100%;" colspan="3">
               <div class="data-label">Endereço de Residência</div>
               <div class="data-value">${escapeHtml(fullAddress)}</div>
             </div>
@@ -593,6 +665,22 @@ export function generateClinicalReportHtml(
         ${!anamnesis ? `
           <div class="empty-notice">Nenhuma anamnese clínica registrada no prontuário até o momento.</div>
         ` : `
+          <!-- Main Complaint if present -->
+          ${anamnesis.main_complaint ? `
+            <div class="sub-panel" style="border-left: 3px solid #9B6CBA; margin-bottom: 10px;">
+              <div class="sub-panel-title" style="color: #7A4F94;">Queixa Principal:</div>
+              <div style="font-size: 9.5pt; color: #2C2530; line-height: 1.4;">${escapeHtml(anamnesis.main_complaint)}</div>
+            </div>
+          ` : ''}
+
+          <!-- Detailed Clinical History if present -->
+          ${anamnesis.clinical_history ? `
+            <div class="sub-panel" style="border-left: 3px solid #9B6CBA; margin-bottom: 10px;">
+              <div class="sub-panel-title" style="color: #7A4F94;">Histórico Clínico:</div>
+              <div style="font-size: 9.5pt; color: #2C2530; line-height: 1.4;">${escapeHtml(anamnesis.clinical_history)}</div>
+            </div>
+          ` : ''}
+
           <!-- Pain Complaints & EVA Intensity -->
           <div class="sub-panel">
             <div class="sub-panel-title">
@@ -639,7 +727,7 @@ export function generateClinicalReportHtml(
                 <div class="data-value ${anamnesis.allergies ? 'alert-wine' : ''}">${escapeHtml(anamnesis.allergies || 'Nenhuma alergia')}</div>
               </div>
               <div class="data-cell col-3">
-                <div class="data-label">Cirurgias Prévias</div>
+                <div class="data-label">Cirurgias</div>
                 <div class="data-value">${escapeHtml(anamnesis.surgeries || 'Nenhuma intervenção cirúrgica')}</div>
               </div>
             </div>
@@ -665,14 +753,14 @@ export function generateClinicalReportHtml(
               <div class="data-cell col-2" style="padding-top: 8px;">
                 <div class="data-label">Histórico Gineco-Obstétrico</div>
                 <div class="data-value">
-                  ${pregnancies?.has === 'sim'
-                    ? `Gestações: ${pregnancies.quantity || 1} (${escapeHtml(pregnancies.delivery_type || 'Parto')} ${pregnancies.complications ? `— Complicações: ${escapeHtml(pregnancies.complications)}` : ''})`
-                    : 'Sem gestações prévias'}
-                  ${abortions?.has === 'sim' ? `<br><span style="color:#6E6573;">Abortamentos: ${abortions.quantity || 1} (${escapeHtml(abortions.gestational_age || 'Sem idade gestacional')})</span>` : ''}
+                  ${hasPregnancy
+                    ? `Gestações: ${pregnancyQty} (${escapeHtml(deliveryTypeDisplay)}${lastPregTime ? ` • Último há: ${escapeHtml(lastPregTime)}` : ''}${pregnancyNotes ? ` — Obs: ${escapeHtml(pregnancyNotes)}` : ''})`
+                    : 'Sem histórico de gestações'}
+                  ${hasAbortion ? `<br><span style="color:#6E6573;">Abortamentos: ${abortionQty} (${escapeHtml(abortionTime || 'Sem idade gestacional')}${abortionNotes ? ` • Obs: ${escapeHtml(abortionNotes)}` : ''})</span>` : ''}
                 </div>
               </div>
               <div class="data-cell col-2" style="padding-top: 8px;">
-                <div class="data-label">Atividade Física Atual & Hábitos</div>
+                <div class="data-label">Atividades Físicas & Hábitos</div>
                 <div class="data-value">${escapeHtml(anamnesis.physical_activity || 'Sedentária / Sem atividade física regular')}</div>
               </div>
             </div>
@@ -799,12 +887,18 @@ export function generateClinicalReportHtml(
                   <div class="data-value">${escapeHtml(postural.posterior_pelvis ? (postural.posterior_pelvis === 'Alinhada' ? 'Alinhada' : `Desvio em ${postural.posterior_pelvis}`) : 'Alinhada')}</div>
                 </div>
                 <div class="data-cell col-4">
-                  <div class="data-label">Linhas Glútea & Poplítea</div>
-                  <div class="data-value">Glútea: ${escapeHtml(postural.gluteal_line || 'Alinhada')}<br>Poplítea: ${escapeHtml(postural.popliteal_line || 'Alinhada')}</div>
+                  <div class="data-label">Alinhamento do Quadril</div>
+                  <div class="data-value">${escapeHtml(postural.hip_alignment || 'Neutro / Alinhado')}</div>
                 </div>
                 <div class="data-cell col-4">
                   <div class="data-label">Escoliose / Teste de Adams</div>
                   <div class="data-value">${escapeHtml(postural.scoliosis || 'Sem gibosidade detectada')}</div>
+                </div>
+              </div>
+              <div class="data-row">
+                <div class="data-cell" style="padding-top: 6px; width: 100%;" colspan="4">
+                  <div class="data-label">Linhas Glútea & Poplítea</div>
+                  <div class="data-value">Glútea: ${escapeHtml(postural.gluteal_line || 'Alinhada')} • Poplítea: ${escapeHtml(postural.popliteal_line || 'Alinhada')}</div>
                 </div>
               </div>
               <div class="data-row">
@@ -889,6 +983,17 @@ export function generateClinicalReportHtml(
                     <td>
                       <strong>${item.body_fat_percent.toFixed(1)}%</strong>
                       ${item.body_water_pct ? `<br><span style="font-size: 7.5pt; color:#6E6573;">Água: ${item.body_water_pct}%</span>` : ''}
+                      ${(() => {
+                        const chron = item.chronological_age ?? patient.age ?? null;
+                        const body = item.body_age ?? null;
+                        if (chron && body) {
+                          const comp = compareAges(chron, body);
+                          return `<br><span style="display:inline-block; font-size:6.5pt; font-weight:700; color:${comp.color}; background-color:${comp.color}15; padding:1px 3px; border-radius:3px;" title="${comp.label}">Biol: ${body}a (Cron: ${chron}a)</span>`;
+                        } else if (body) {
+                          return `<br><span style="font-size: 7pt; color:#6E6573;">Idade Biol: ${body}a</span>`;
+                        }
+                        return '';
+                      })()}
                     </td>
                     <td>
                       <span style="font-weight:700; color: ${item.visceral_fat >= 10 ? '#6A1B15' : '#1B5235'};">
@@ -896,8 +1001,14 @@ export function generateClinicalReportHtml(
                       </span>
                     </td>
                     <td>
-                      <strong>${item.muscle_mass_kg.toFixed(1)} kg</strong>
-                      ${item.abdominal_circ ? `<br><span style="font-size: 7.5pt; color:#6E6573;">Abd: ${item.abdominal_circ}cm</span>` : ''}
+                      <strong>${item.muscle_mass_kg != null ? `${item.muscle_mass_kg.toFixed(1)} kg` : item.muscle_mass_percent != null ? `${item.muscle_mass_percent.toFixed(1)}%` : '—'}</strong>
+                      ${item.abdominal_circ ? `
+                        <br><span style="font-size: 7.5pt; color:#6E6573;">Abd: <strong>${item.abdominal_circ}cm</strong></span>
+                        <br>${(() => {
+                          const ev = classifyAbdominalCircumference(item.abdominal_circ, 'female');
+                          return `<span style="display:inline-block; font-size:7pt; font-weight:700; color:${ev.color}; background-color:${ev.color}15; padding:1px 4px; border-radius:3px; margin-top:1px;">${ev.classification}</span>`;
+                        })()}
+                      ` : ''}
                     </td>
                     <td style="font-size: 8pt; line-height: 1.3;">
                       ${segmentalList.length > 0 ? segmentalList.join('<br>') : '<span style="color:#9E97A6;">Padrão global</span>'}
@@ -914,9 +1025,106 @@ export function generateClinicalReportHtml(
               }).join('')}
             </tbody>
           </table>
+
+          <!-- Clinical Reference Tables Didactic Section -->
+          <div style="margin-top: 14px; padding: 10px 12px; background-color: #FAF8F5; border: 1px solid #E8E0EC; border-radius: 6px; page-break-inside: avoid;">
+            <div style="font-size: 8.5pt; font-weight: 700; color: #7A4F94; margin-bottom: 8px;">
+              Tabelas de Referência Clínica & Parâmetros Científicos (OMS / Pollock / ABESO)
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 8pt;">
+              <div style="background-color: #FFFFFF; border: 1px solid #E8E0EC; border-radius: 5px; padding: 6px 8px;">
+                <strong style="color: #1F1A24; display: block; margin-bottom: 3px; font-size: 7.5pt;">Gordura Corporal % (Feminino)</strong>
+                <table style="width: 100%; border-collapse: collapse; font-size: 7pt;">
+                  ${BODY_FAT_REFERENCE_TABLE.map((row) => `
+                    <tr style="border-bottom: 1px solid #F0E6F6;">
+                      <td style="padding: 1px 0; color: #6E6573;">${row.classification}</td>
+                      <td style="padding: 1px 0; text-align: right; font-weight: 600; color: #1F1A24;">${row.female}</td>
+                    </tr>
+                  `).join('')}
+                </table>
+              </div>
+
+              <div style="background-color: #FFFFFF; border: 1px solid #E8E0EC; border-radius: 5px; padding: 6px 8px;">
+                <strong style="color: #1F1A24; display: block; margin-bottom: 3px; font-size: 7.5pt;">Gordura Visceral (Níveis 1 a 59)</strong>
+                <table style="width: 100%; border-collapse: collapse; font-size: 7pt;">
+                  ${VISCERAL_FAT_REFERENCE_TABLE.map((row) => `
+                    <tr style="border-bottom: 1px solid #F0E6F6;">
+                      <td style="padding: 1px 0; font-weight: 600; color: #1F1A24;">${row.level}</td>
+                      <td style="padding: 1px 0; color: #6E6573;">${row.classification}</td>
+                    </tr>
+                  `).join('')}
+                </table>
+              </div>
+
+              <div style="background-color: #FFFFFF; border: 1px solid #E8E0EC; border-radius: 5px; padding: 6px 8px;">
+                <strong style="color: #1F1A24; display: block; margin-bottom: 3px; font-size: 7.5pt;">Circunferência Abdominal (OMS)</strong>
+                <table style="width: 100%; border-collapse: collapse; font-size: 7pt;">
+                  <tr style="border-bottom: 1px solid #F0E6F6;">
+                    <td style="padding: 1px 0; color: #1B5235; font-weight: 600;">Adequado</td>
+                    <td style="padding: 1px 0; text-align: right; font-weight: 600;">&lt; 80 cm</td>
+                  </tr>
+                  <tr style="border-bottom: 1px solid #F0E6F6;">
+                    <td style="padding: 1px 0; color: #C27803; font-weight: 600;">Aumentado</td>
+                    <td style="padding: 1px 0; text-align: right; font-weight: 600;">80 a 88 cm</td>
+                  </tr>
+                  <tr style="border-bottom: 1px solid #F0E6F6;">
+                    <td style="padding: 1px 0; color: #6A1B15; font-weight: 600;">Muito Aumentado</td>
+                    <td style="padding: 1px 0; text-align: right; font-weight: 600;">&gt; 88 cm</td>
+                  </tr>
+                </table>
+              </div>
+
+              <div style="background-color: #FFFFFF; border: 1px solid #E8E0EC; border-radius: 5px; padding: 6px 8px;">
+                <strong style="color: #1F1A24; display: block; margin-bottom: 3px; font-size: 7.5pt;">Classificação IMC (OMS / ABESO)</strong>
+                <table style="width: 100%; border-collapse: collapse; font-size: 7pt;">
+                  ${BMI_REFERENCE_TABLE.map((row) => `
+                    <tr style="border-bottom: 1px solid #F0E6F6;">
+                      <td style="padding: 1px 0; color: #6E6573;">${row.classification}</td>
+                      <td style="padding: 1px 0; text-align: right; font-weight: 600; color: #1F1A24;">${row.range}</td>
+                    </tr>
+                  `).join('')}
+                </table>
+              </div>
+            </div>
+          </div>
         `}
       </div>
     </div>
+
+    ${conditionPhotos && conditionPhotos.length > 0 ? `
+      <!-- Photographic Annex Section -->
+      <div class="section-card" style="page-break-inside: avoid;">
+        <div class="section-header">
+          <span class="section-title">5. Anexo Fotográfico — Condições & Evolução Clínica</span>
+          <span class="section-subtitle">${conditionPhotos.length} registro(s) anexado(s)</span>
+        </div>
+        <div class="section-body">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+            ${conditionPhotos.map((photo) => `
+              <div style="border: 1px solid #E8E0EC; border-radius: 8px; overflow: hidden; background-color: #FAF8F5; page-break-inside: avoid;">
+                <div style="width: 100%; height: 180px; background-color: #E8E0EC; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+                  <img src="${escapeHtml(photo.photo_uri)}" alt="${escapeHtml(photo.title || photo.category)}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none';" />
+                </div>
+                <div style="padding: 10px 12px;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                    <span style="display:inline-block; padding:2px 8px; border-radius:10px; font-size:7.5pt; font-weight:700; color:#7A4F94; background-color:#F0E6F6; border:1px solid #D4BFE3;">
+                      ${escapeHtml(photo.category)}
+                    </span>
+                    <span style="font-size: 8pt; color: #6E6573; font-weight: 600;">${formatDateBR(photo.date)}</span>
+                  </div>
+                  ${photo.title ? `
+                    <div style="font-size: 9.5pt; font-weight: 700; color: #1F1A24; margin-bottom: 2px;">${escapeHtml(photo.title)}</div>
+                  ` : ''}
+                  ${photo.notes ? `
+                    <div style="font-size: 8.5pt; color: #6E6573; line-height: 1.3;">${escapeHtml(photo.notes)}</div>
+                  ` : ''}
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+    ` : ''}
 
     <!-- Formal Clinician Signature Footer -->
     <div class="signature-container">

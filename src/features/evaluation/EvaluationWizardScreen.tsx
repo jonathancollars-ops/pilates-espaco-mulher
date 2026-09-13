@@ -87,6 +87,8 @@ import {
   formatPercent,
   formatDecimalBR,
 } from '../../utils/formatters';
+import { BioimpedanceReferenceModal } from './BioimpedanceReferenceModal';
+import { PatientConditionPhotosModal } from './PatientConditionPhotosModal';
 
 export interface EvaluationWizardScreenProps {
   patientId?: string;
@@ -158,6 +160,7 @@ export function EvaluationWizardScreen({
   // ---------------------------------------------------------------------------
   // ABA 2: Anamnese Form State
   // ---------------------------------------------------------------------------
+  const [clinicalHistory, setClinicalHistory] = useState('');
   const [labTests, setLabTests] = useState('');
   const [imagingExams, setImagingExams] = useState('');
   const [medications, setMedications] = useState('');
@@ -172,11 +175,13 @@ export function EvaluationWizardScreen({
   const [luxationPhysio, setLuxationPhysio] = useState('');
   const [hasPregnancy, setHasPregnancy] = useState<'sim' | 'nao'>('nao');
   const [pregnancyCount, setPregnancyCount] = useState('0');
-  const [deliveryType, setDeliveryType] = useState<'Normal' | 'Cesariana' | 'Ambos'>('Cesariana');
+  const [deliveryType, setDeliveryType] = useState<'Normal' | 'Cesárea' | 'Cesariana' | 'Ambos'>('Cesariana');
+  const [lastPregnancyTime, setLastPregnancyTime] = useState('');
   const [pregnancyComplications, setPregnancyComplications] = useState('');
   const [hasAbortion, setHasAbortion] = useState<'sim' | 'nao'>('nao');
   const [abortionCount, setAbortionCount] = useState('0');
   const [abortionAge, setAbortionAge] = useState('');
+  const [abortionNotes, setAbortionNotes] = useState('');
   const [physicalActivity, setPhysicalActivity] = useState('');
   const [painIntensity, setPainIntensity] = useState<number>(0);
   const [painLocation, setPainLocation] = useState('');
@@ -187,6 +192,7 @@ export function EvaluationWizardScreen({
   // Hydrate Anamnese form when record loaded
   useEffect(() => {
     if (anamnesis) {
+      setClinicalHistory(anamnesis.clinical_history || '');
       setLabTests(anamnesis.lab_tests || '');
       setImagingExams(anamnesis.imaging_exams || '');
       setMedications(anamnesis.medications || '');
@@ -215,7 +221,19 @@ export function EvaluationWizardScreen({
       if (preg && typeof preg === 'object') {
         setHasPregnancy(preg.has || 'nao');
         setPregnancyCount(String(preg.quantity ?? 0));
-        setDeliveryType(preg.delivery_type || 'Cesariana');
+        const dt = preg.delivery_type;
+        if (dt === 'Normal' || dt === 'Cesárea' || dt === 'Cesariana' || dt === 'Ambos') {
+          setDeliveryType(dt);
+        } else if (dt === 'cesarean') {
+          setDeliveryType('Cesárea');
+        } else if (dt === 'normal') {
+          setDeliveryType('Normal');
+        } else if (dt === 'both') {
+          setDeliveryType('Ambos');
+        } else {
+          setDeliveryType('Cesariana');
+        }
+        setLastPregnancyTime(preg.last_pregnancy_time || '');
         setPregnancyComplications(preg.complications || '');
       }
 
@@ -224,6 +242,7 @@ export function EvaluationWizardScreen({
         setHasAbortion(ab.has || 'nao');
         setAbortionCount(String(ab.quantity ?? 0));
         setAbortionAge(ab.gestational_age || '');
+        setAbortionNotes(ab.notes || '');
       }
 
       const complaints = anamnesis.pain_complaints as PainComplaintEntry[] | null;
@@ -234,6 +253,7 @@ export function EvaluationWizardScreen({
       }
     } else {
       // Reset defaults
+      setClinicalHistory('');
       setLabTests('');
       setImagingExams('');
       setMedications('');
@@ -249,10 +269,12 @@ export function EvaluationWizardScreen({
       setHasPregnancy('nao');
       setPregnancyCount('0');
       setDeliveryType('Cesariana');
+      setLastPregnancyTime('');
       setPregnancyComplications('');
       setHasAbortion('nao');
       setAbortionCount('0');
       setAbortionAge('');
+      setAbortionNotes('');
       setPhysicalActivity('');
       setPainIntensity(0);
       setPainLocation('');
@@ -270,6 +292,7 @@ export function EvaluationWizardScreen({
       Haptics.impactMedium();
 
       const input: UpsertAnamnesisInput = {
+        clinical_history: clinicalHistory.trim() || null,
         lab_tests: labTests.trim() || null,
         imaging_exams: imagingExams.trim() || null,
         medications: medications.trim() || null,
@@ -290,12 +313,14 @@ export function EvaluationWizardScreen({
           has: hasPregnancy,
           quantity: parseInt(pregnancyCount, 10) || 0,
           delivery_type: deliveryType,
+          last_pregnancy_time: lastPregnancyTime.trim() || undefined,
           complications: pregnancyComplications.trim() || undefined,
         },
         abortions: {
           has: hasAbortion,
           quantity: parseInt(abortionCount, 10) || 0,
           gestational_age: abortionAge.trim() || undefined,
+          notes: abortionNotes.trim() || undefined,
         },
         physical_activity: physicalActivity.trim() || null,
         pain_intensity: painIntensity,
@@ -343,8 +368,10 @@ export function EvaluationWizardScreen({
   const [scoliosisAlign, setScoliosisAlign] = useState<string>('Ausente');
   const [glutealLine, setGlutealLine] = useState<'D' | 'E' | 'Alinhada'>('Alinhada');
   const [poplitealLine, setPoplitealLine] = useState<'D' | 'E' | 'Alinhada'>('Alinhada');
+  const [hipAlign, setHipAlign] = useState<string>('Nivelado');
   const [musculatureAlign, setMusculatureAlign] = useState<string>('Normotrófica');
   const [posturalNotes, setPosturalNotes] = useState<string>('');
+  const [conditionPhotosVisible, setConditionPhotosVisible] = useState<boolean>(false);
 
   const latestPostural = posturalList.length > 0 ? posturalList[0] : null;
 
@@ -366,6 +393,7 @@ export function EvaluationWizardScreen({
       setScoliosisAlign(latestPostural.scoliosis || 'Ausente');
       setGlutealLine(latestPostural.gluteal_line || 'Alinhada');
       setPoplitealLine(latestPostural.popliteal_line || 'Alinhada');
+      setHipAlign(latestPostural.hip_alignment || 'Nivelado');
       setMusculatureAlign(latestPostural.musculature || 'Normotrófica');
       setPosturalNotes(latestPostural.notes || '');
     }
@@ -397,6 +425,7 @@ export function EvaluationWizardScreen({
         scoliosis: scoliosisAlign,
         gluteal_line: glutealLine,
         popliteal_line: poplitealLine,
+        hip_alignment: hipAlign,
         musculature: musculatureAlign,
         notes: posturalNotes.trim() || null,
       };
@@ -428,11 +457,25 @@ export function EvaluationWizardScreen({
   const [bioFatLegR, setBioFatLegR] = useState('');
   const [bioFatLegL, setBioFatLegL] = useState('');
   const [bioOpinion, setBioOpinion] = useState('');
+  const [referenceModalVisible, setReferenceModalVisible] = useState<boolean>(false);
 
   // Auto-calculated BMI and BMR
   const numericWeight = parseFloat(bioWeight.replace(',', '.')) || 0;
   const numericHeight = parseFloat(bioHeight.replace(',', '.')) || 0;
   const patientAge = activePatient?.age ?? (activePatient?.birthdate ? calculateAge(activePatient.birthdate) : 35) ?? 35;
+
+  const [bioChronologicalAge, setBioChronologicalAge] = useState(patientAge ? String(patientAge) : '');
+  const [bioBodyAge, setBioBodyAge] = useState('');
+
+  // Update chronological age when patient changes
+  useEffect(() => {
+    if (activePatient) {
+      const computed = activePatient.age ?? (activePatient.birthdate ? calculateAge(activePatient.birthdate) : null);
+      if (computed) {
+        setBioChronologicalAge(String(computed));
+      }
+    }
+  }, [activePatient]);
 
   const autoBmi = useMemo(() => {
     return calculateBMI(numericWeight, numericHeight);
@@ -451,6 +494,32 @@ export function EvaluationWizardScreen({
     const level = parseInt(bioVisceralFat, 10) || 1;
     return classifyVisceralFat(level);
   }, [bioVisceralFat]);
+
+  // Comparison between chronological age and body age
+  const ageComparison = useMemo(() => {
+    const chron = parseInt(bioChronologicalAge, 10);
+    const body = parseInt(bioBodyAge, 10);
+    if (isNaN(chron) || isNaN(body) || chron <= 0 || body <= 0) return null;
+    const diff = body - chron;
+    if (diff < 0) {
+      return {
+        label: `Rejuvenescimento (${diff} anos)`,
+        variant: 'success' as const,
+        description: 'Metabolismo e composição corporal mais jovens que a idade real',
+      };
+    } else if (diff > 0) {
+      return {
+        label: `Idade Aumentada (+${diff} anos)`,
+        variant: 'alert' as const,
+        description: 'Atenção: Idade metabólica corporal superior à idade cronológica',
+      };
+    }
+    return {
+      label: 'Idade Equivalente (0)',
+      variant: 'primary' as const,
+      description: 'Idade metabólica alinhada com a idade cronológica',
+    };
+  }, [bioChronologicalAge, bioBodyAge]);
 
   const handleSaveBioimpedance = async () => {
     if (!selectedPatientId) return;
@@ -472,6 +541,8 @@ export function EvaluationWizardScreen({
         height: numericHeight,
         abdominal_circ: bioAbdominalCirc ? parseFloat(bioAbdominalCirc.replace(',', '.')) : null,
         bmi: autoBmi.value,
+        chronological_age: parseInt(bioChronologicalAge, 10) || null,
+        body_age: parseInt(bioBodyAge, 10) || null,
         bmr: autoBmr,
         body_fat_percent: parseFloat(bioFatPct.replace(',', '.')) || 0,
         visceral_fat: parseInt(bioVisceralFat, 10) || 1,
@@ -490,6 +561,7 @@ export function EvaluationWizardScreen({
       Alert.alert('Sucesso', 'Aferição de bioimpedância cadastrada com sucesso!');
       setBioWeight('');
       setBioAbdominalCirc('');
+      setBioBodyAge('');
       setBioOpinion('');
     } catch (err: any) {
       Haptics.error();
@@ -826,6 +898,26 @@ export function EvaluationWizardScreen({
           {activeTab === 1 && (
             <View style={styles.tabContent}>
               <InsetGroupedList scrollable={false}>
+                {/* 0. Histórico Clínico */}
+                <InsetGroup
+                  header="Histórico Clínico"
+                  footer="Descreva o histórico de saúde pregressa, patologias associadas e queixas principais."
+                >
+                  <View style={styles.inputCell}>
+                    <Text style={styles.inputLabel}>Histórico Clínico do Paciente</Text>
+                    <TextInput
+                      style={[styles.textInputMulti, { minHeight: 100 }]}
+                      value={clinicalHistory}
+                      onChangeText={setClinicalHistory}
+                      placeholder="Descreva o histórico clínico, patologias prévias, histórico familiar, tratamentos anteriores..."
+                      placeholderTextColor={Colors.textTertiary}
+                      multiline
+                      numberOfLines={4}
+                      textAlignVertical="top"
+                    />
+                  </View>
+                </InsetGroup>
+
                 {/* 1. Exames e Medicamentos */}
                 <InsetGroup
                   header="Exames & Medicamentos"
@@ -943,11 +1035,11 @@ export function EvaluationWizardScreen({
                 {/* 3. Gineco-Obstétrico */}
                 <InsetGroup header="Histórico Gineco-Obstétrico">
                   <View style={styles.nestedSection}>
-                    {renderOptionSelector('Gestações Prévias?', ['sim', 'nao'] as const, hasPregnancy, setHasPregnancy)}
+                    {renderOptionSelector('Gestação', ['sim', 'nao'] as const, hasPregnancy, setHasPregnancy)}
                     {hasPregnancy === 'sim' && (
                       <View style={styles.subFieldsBox}>
                         <View style={styles.inlineRowInput}>
-                          <Text style={styles.inputSubLabel}>Quantidade:</Text>
+                          <Text style={styles.inputSubLabel}>Quantidade de partos:</Text>
                           <TextInput
                             style={[styles.textInputSub, { width: 60, textAlign: 'center' }]}
                             keyboardType="numeric"
@@ -955,7 +1047,14 @@ export function EvaluationWizardScreen({
                             onChangeText={setPregnancyCount}
                           />
                         </View>
-                        {renderOptionSelector('Tipo de Parto', ['Normal', 'Cesariana', 'Ambos'] as const, deliveryType, setDeliveryType)}
+                        {renderOptionSelector('Tipo de Parto', ['Normal', 'Cesárea', 'Ambos'] as const, deliveryType as any, setDeliveryType as any)}
+                        <TextInput
+                          style={styles.textInputSub}
+                          value={lastPregnancyTime}
+                          onChangeText={setLastPregnancyTime}
+                          placeholder="Tempo desde o último parto (ex.: 2 anos, 6 meses)"
+                          placeholderTextColor={Colors.textTertiary}
+                        />
                         <TextInput
                           style={styles.textInputSub}
                           value={pregnancyComplications}
@@ -968,7 +1067,7 @@ export function EvaluationWizardScreen({
                   </View>
 
                   <View style={styles.nestedSection}>
-                    {renderOptionSelector('Histórico de Abortamento?', ['sim', 'nao'] as const, hasAbortion, setHasAbortion)}
+                    {renderOptionSelector('Aborto', ['sim', 'nao'] as const, hasAbortion, setHasAbortion)}
                     {hasAbortion === 'sim' && (
                       <View style={styles.subFieldsBox}>
                         <View style={styles.inlineRowInput}>
@@ -985,6 +1084,13 @@ export function EvaluationWizardScreen({
                           value={abortionAge}
                           onChangeText={setAbortionAge}
                           placeholder="Idade gestacional (ex.: 8 semanas)"
+                          placeholderTextColor={Colors.textTertiary}
+                        />
+                        <TextInput
+                          style={styles.textInputSub}
+                          value={abortionNotes}
+                          onChangeText={setAbortionNotes}
+                          placeholder="Observações do aborto (ex.: espontâneo, curetagem)"
                           placeholderTextColor={Colors.textTertiary}
                         />
                       </View>
@@ -1141,6 +1247,16 @@ export function EvaluationWizardScreen({
           {/* ============================================================= */}
           {activeTab === 2 && (
             <View style={styles.tabContent}>
+              <View style={{ marginBottom: Spacing.base }}>
+                <Button
+                  title="Fotos de Condição Clínica"
+                  variant="secondary"
+                  leadingIcon={<Ionicons name="images-outline" size={20} color={Colors.primary} />}
+                  onPress={() => setConditionPhotosVisible(true)}
+                  fullWidth
+                />
+              </View>
+
               <InsetGroupedList scrollable={false}>
                 {/* 1. Vista Frontal */}
                 <InsetGroup
@@ -1150,6 +1266,7 @@ export function EvaluationWizardScreen({
                   {renderOptionSelector('Alinhamento da Cabeça', ['Neutra', 'D', 'E'] as const, headAlign, setHeadAlign, 'Inclinação')}
                   {renderOptionSelector('Nível dos Ombros', ['Alinhados', 'D', 'E'] as const, shouldersAlign, setShouldersAlign, 'Mais elevado')}
                   {renderOptionSelector('Triângulo de Thales', ['Simétrico', 'D', 'E'] as const, thalesAlign, setThalesAlign, 'Maior espaçamento')}
+                  {renderOptionSelector('Alinhamento de Quadril', ['Nivelado', 'Elevado D', 'Elevado E', 'Anteversão', 'Retroversão', 'Rotação D', 'Rotação E'] as const, hipAlign, setHipAlign)}
                   {renderOptionSelector('Alinhamento dos Joelhos', ['Neutro', 'Valgos', 'Varos'] as const, kneesAlign, setKneesAlign)}
                   {renderOptionSelector('Apoio dos Pés', ['Neutro', 'Halux Valgo D', 'Halux Valgo E', 'Pronados', 'Supinados'] as const, feetAlign, setFeetAlign)}
                 </InsetGroup>
@@ -1214,6 +1331,16 @@ export function EvaluationWizardScreen({
           {/* ============================================================= */}
           {activeTab === 3 && (
             <View style={styles.tabContent}>
+              <View style={{ marginBottom: Spacing.base }}>
+                <Button
+                  title="Tabela de Referência Clínica"
+                  variant="secondary"
+                  leadingIcon={<Ionicons name="information-circle-outline" size={20} color={Colors.primary} />}
+                  onPress={() => setReferenceModalVisible(true)}
+                  fullWidth
+                />
+              </View>
+
               {/* Form de Nova Aferição */}
               <InsetGroupedList scrollable={false}>
                 <InsetGroup
@@ -1282,6 +1409,52 @@ export function EvaluationWizardScreen({
                         <Text style={styles.calcValue}>{autoBmr} kcal/dia</Text>
                         <Text style={styles.calcSub}>Gasto basal feminino</Text>
                       </View>
+                    </View>
+                  )}
+
+                  {/* Idade Cronológica e Idade Corporal Lado a Lado */}
+                  <View style={styles.biometricFormRow}>
+                    <View style={styles.biometricCol}>
+                      <Text style={styles.inputLabel}>Idade Cronológica</Text>
+                      <TextInput
+                        style={styles.textInputMetric}
+                        keyboardType="numeric"
+                        value={bioChronologicalAge}
+                        onChangeText={setBioChronologicalAge}
+                        placeholder="35"
+                        placeholderTextColor={Colors.textTertiary}
+                      />
+                    </View>
+                    <View style={styles.biometricCol}>
+                      <Text style={styles.inputLabel}>Idade Corporal / Metabólica</Text>
+                      <TextInput
+                        style={styles.textInputMetric}
+                        keyboardType="numeric"
+                        value={bioBodyAge}
+                        onChangeText={setBioBodyAge}
+                        placeholder="28"
+                        placeholderTextColor={Colors.textTertiary}
+                      />
+                    </View>
+                  </View>
+
+                  {ageComparison && (
+                    <View style={styles.ageComparisonCard}>
+                      <View style={styles.ageComparisonHeader}>
+                        <Ionicons
+                          name={ageComparison.variant === 'success' ? 'sparkles' : 'alert-circle'}
+                          size={18}
+                          color={ageComparison.variant === 'success' ? Colors.success : Colors.warning}
+                        />
+                        <Badge
+                          label={ageComparison.label}
+                          variant={ageComparison.variant}
+                          size="md"
+                        />
+                      </View>
+                      <Text style={styles.ageComparisonDescription}>
+                        {ageComparison.description}
+                      </Text>
                     </View>
                   )}
 
@@ -1486,6 +1659,20 @@ export function EvaluationWizardScreen({
           </View>
         </>
       )}
+
+      {activePatient ? (
+        <PatientConditionPhotosModal
+          visible={conditionPhotosVisible}
+          patientId={activePatient.id}
+          patientName={activePatient.name}
+          onClose={() => setConditionPhotosVisible(false)}
+        />
+      ) : null}
+
+      <BioimpedanceReferenceModal
+        visible={referenceModalVisible}
+        onClose={() => setReferenceModalVisible(false)}
+      />
     </LargeTitleLayout>
   );
 }
@@ -1925,5 +2112,25 @@ const styles = StyleSheet.create({
   footerContainer: {
     marginTop: Spacing.base,
     marginBottom: Spacing.xl,
+  },
+  ageComparisonCard: {
+    marginHorizontal: 16,
+    marginVertical: 8,
+    padding: 12,
+    borderRadius: Radii.card,
+    backgroundColor: Colors.surfaceSecondary,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    gap: 6,
+  },
+  ageComparisonHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  ageComparisonDescription: {
+    ...Typography.caption1,
+    color: Colors.textSecondary,
+    lineHeight: 18,
   },
 });

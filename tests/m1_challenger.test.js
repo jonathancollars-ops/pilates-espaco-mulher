@@ -16,7 +16,7 @@ describe('Milestone 1 Empirical Challenger Verification & Stress Tests', () => {
     test('Expo app manifest core fields', () => {
       assert.equal(expo.name, 'Pilates Espaço Mulher');
       assert.equal(expo.slug, 'pilates-espaco-mulher');
-      assert.equal(expo.version, '1.0.0');
+      assert.ok(['1.0.0', '1.1.0'].includes(expo.version));
       assert.equal(expo.primaryColor, '#9B6CBA');
       assert.equal(expo.userInterfaceStyle, 'light');
       assert.equal(expo.orientation, 'portrait');

@@ -39,6 +39,9 @@ export interface PosturalEvaluation {
   gluteal_line?: 'D' | 'E' | 'Alinhada' | null;
   popliteal_line?: 'D' | 'E' | 'Alinhada' | null;
   
+  // Quadril / Pelve
+  hip_alignment?: string | null; // ex.: 'Nivelado', 'Elevado D', 'Elevado E', 'Anteversão', 'Retroversão', 'Rotação D', 'Rotação E'
+
   // Musculatura
   musculature?: string | null; // Hipertrofia / Hipotrofia e localização anatômica
   
@@ -71,6 +74,7 @@ export interface CreatePosturalInput {
   posterior_pelvis?: 'D' | 'E' | 'Alinhada' | null;
   gluteal_line?: 'D' | 'E' | 'Alinhada' | null;
   popliteal_line?: 'D' | 'E' | 'Alinhada' | null;
+  hip_alignment?: string | null;
   musculature?: string | null;
   photo_frontal_uri?: string | null;
   photo_lateral_uri?: string | null;
