@@ -74,6 +74,9 @@ export const MIGRATIONS: Migration[] = [
 
       // 4. Extend bioimpedance table
       await addColumnIfNotExists(db, 'bioimpedance', 'chronological_age', 'INTEGER');
+      await addColumnIfNotExists(db, 'bioimpedance', 'body_age', 'INTEGER');
+      await addColumnIfNotExists(db, 'bioimpedance', 'metabolic_age', 'INTEGER');
+      await addColumnIfNotExists(db, 'bioimpedance', 'abdominal_circ', 'REAL');
 
       // 5. Create patient_condition_photos table and indices
       await db.execAsync(SCHEMA_V3_DDL);
@@ -81,6 +84,17 @@ export const MIGRATIONS: Migration[] = [
     },
   },
 ];
+
+/**
+ * Idempotently ensures all critical bioimpedance columns exist in SQLite,
+ * guaranteeing safety even if the user upgraded from an earlier app build.
+ */
+export async function ensureBioimpedanceColumns(db: SQLiteDatabase): Promise<void> {
+  await addColumnIfNotExists(db, 'bioimpedance', 'chronological_age', 'INTEGER');
+  await addColumnIfNotExists(db, 'bioimpedance', 'body_age', 'INTEGER');
+  await addColumnIfNotExists(db, 'bioimpedance', 'metabolic_age', 'INTEGER');
+  await addColumnIfNotExists(db, 'bioimpedance', 'abdominal_circ', 'REAL');
+}
 
 /**
  * Runs all pending migrations in sequential order.
@@ -105,6 +119,9 @@ export async function runMigrations(
       runningVersion = migration.version;
     }
   }
+
+  // Defensively ensure bioimpedance columns exist regardless of user version history
+  await ensureBioimpedanceColumns(db);
 
   return { initialVersion, finalVersion: runningVersion };
 }

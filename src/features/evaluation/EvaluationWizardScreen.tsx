@@ -77,7 +77,13 @@ import { anamnesisRepository } from '../../database/repositories/anamnesisReposi
 import { posturalRepository } from '../../database/repositories/posturalRepository';
 import { bioimpedanceRepository } from '../../database/repositories/bioimpedanceRepository';
 import { generateClinicalReportPdf } from '../../services/pdfService';
-import { calculateBMI, calculateBMR, classifyVisceralFat } from '../../utils/biometrics';
+import {
+  calculateBMI,
+  calculateBMR,
+  classifyVisceralFat,
+  classifyAbdominalCircumference,
+  compareAges,
+} from '../../utils/biometrics';
 import {
   formatPhone,
   formatDateBR,
@@ -107,6 +113,18 @@ export function EvaluationWizardScreen({
   const [selectedPatientId, setSelectedPatientId] = useState<string>(
     initialPatientId || (patients.length > 0 ? patients[0].id : '')
   );
+
+  useEffect(() => {
+    if (initialPatientId && initialPatientId !== selectedPatientId) {
+      setSelectedPatientId(initialPatientId);
+    }
+  }, [initialPatientId, selectedPatientId]);
+
+  useEffect(() => {
+    if (!selectedPatientId && patients.length > 0) {
+      setSelectedPatientId(patients[0].id);
+    }
+  }, [selectedPatientId, patients]);
 
   const activePatient = useMemo<Patient | undefined>(() => {
     return getPatientById(selectedPatientId) || patients.find((p) => p.id === selectedPatientId);
@@ -445,12 +463,14 @@ export function EvaluationWizardScreen({
   // ---------------------------------------------------------------------------
   // ABA 4: Bioimpedância Form State
   // ---------------------------------------------------------------------------
+  const latestBioimpedance = bioimpedanceList.length > 0 ? bioimpedanceList[0] : null;
+
   const [bioWeight, setBioWeight] = useState('');
-  const [bioHeight, setBioHeight] = useState(activePatient?.age ? '165' : '165');
+  const [bioHeight, setBioHeight] = useState('');
   const [bioAbdominalCirc, setBioAbdominalCirc] = useState('');
-  const [bioFatPct, setBioFatPct] = useState('24.5');
-  const [bioVisceralFat, setBioVisceralFat] = useState('4');
-  const [bioMuscleKg, setBioMuscleKg] = useState('42.0');
+  const [bioFatPct, setBioFatPct] = useState('');
+  const [bioVisceralFat, setBioVisceralFat] = useState('');
+  const [bioMuscleKg, setBioMuscleKg] = useState('');
   const [bioFatArmR, setBioFatArmR] = useState('');
   const [bioFatArmL, setBioFatArmL] = useState('');
   const [bioFatTrunk, setBioFatTrunk] = useState('');
@@ -459,23 +479,76 @@ export function EvaluationWizardScreen({
   const [bioOpinion, setBioOpinion] = useState('');
   const [referenceModalVisible, setReferenceModalVisible] = useState<boolean>(false);
 
-  // Auto-calculated BMI and BMR
-  const numericWeight = parseFloat(bioWeight.replace(',', '.')) || 0;
-  const numericHeight = parseFloat(bioHeight.replace(',', '.')) || 0;
   const patientAge = activePatient?.age ?? (activePatient?.birthdate ? calculateAge(activePatient.birthdate) : 35) ?? 35;
-
   const [bioChronologicalAge, setBioChronologicalAge] = useState(patientAge ? String(patientAge) : '');
   const [bioBodyAge, setBioBodyAge] = useState('');
 
-  // Update chronological age when patient changes
+  // Auto-calculated BMI and BMR with comma and meter auto-conversion support
+  const numericWeight = parseFloat(bioWeight.replace(',', '.')) || 0;
+  
+  let rawNumericHeight = parseFloat(bioHeight.replace(',', '.')) || 0;
+  if (rawNumericHeight > 0 && rawNumericHeight < 3) {
+    rawNumericHeight = Math.round(rawNumericHeight * 100 * 10) / 10;
+  }
+  const numericHeight = rawNumericHeight;
+
+  // Hydration helpers
+  const loadBioimpedanceIntoForm = useCallback((bio: Bioimpedance) => {
+    setBioWeight(bio.weight != null ? String(bio.weight) : '');
+    setBioHeight(bio.height != null ? String(bio.height) : '');
+    setBioAbdominalCirc(bio.abdominal_circ != null ? String(bio.abdominal_circ) : '');
+    setBioChronologicalAge(
+      bio.chronological_age != null
+        ? String(bio.chronological_age)
+        : (patientAge ? String(patientAge) : '')
+    );
+    setBioBodyAge(bio.body_age != null ? String(bio.body_age) : '');
+    setBioFatPct(bio.body_fat_percent != null ? String(bio.body_fat_percent) : '');
+    setBioVisceralFat(bio.visceral_fat != null ? String(bio.visceral_fat) : '');
+    setBioMuscleKg(bio.muscle_mass_kg != null ? String(bio.muscle_mass_kg) : '');
+    setBioFatArmR(bio.fat_arm_r != null ? String(bio.fat_arm_r) : '');
+    setBioFatArmL(bio.fat_arm_l != null ? String(bio.fat_arm_l) : '');
+    setBioFatTrunk(bio.fat_trunk != null ? String(bio.fat_trunk) : '');
+    setBioFatLegR(bio.fat_leg_r != null ? String(bio.fat_leg_r) : '');
+    setBioFatLegL(bio.fat_leg_l != null ? String(bio.fat_leg_l) : '');
+    setBioOpinion(bio.clinical_opinion || '');
+  }, [patientAge]);
+
+  const clearBioimpedanceForm = useCallback(() => {
+    setBioWeight('');
+    setBioHeight('');
+    setBioAbdominalCirc('');
+    setBioChronologicalAge(patientAge ? String(patientAge) : '');
+    setBioBodyAge('');
+    setBioFatPct('');
+    setBioVisceralFat('');
+    setBioMuscleKg('');
+    setBioFatArmR('');
+    setBioFatArmL('');
+    setBioFatTrunk('');
+    setBioFatLegR('');
+    setBioFatLegL('');
+    setBioOpinion('');
+  }, [patientAge]);
+
+  // Hydrate Bioimpedance form whenever latestBioimpedance changes or is loaded
   useEffect(() => {
-    if (activePatient) {
+    if (latestBioimpedance) {
+      loadBioimpedanceIntoForm(latestBioimpedance);
+    } else {
+      clearBioimpedanceForm();
+    }
+  }, [latestBioimpedance, loadBioimpedanceIntoForm, clearBioimpedanceForm]);
+
+  // Update chronological age if patient changes and no bioimpedance exists
+  useEffect(() => {
+    if (activePatient && !latestBioimpedance) {
       const computed = activePatient.age ?? (activePatient.birthdate ? calculateAge(activePatient.birthdate) : null);
       if (computed) {
         setBioChronologicalAge(String(computed));
       }
     }
-  }, [activePatient]);
+  }, [activePatient, latestBioimpedance]);
 
   const autoBmi = useMemo(() => {
     return calculateBMI(numericWeight, numericHeight);
@@ -524,7 +597,14 @@ export function EvaluationWizardScreen({
   const handleSaveBioimpedance = async () => {
     if (!selectedPatientId) return;
 
-    if (numericWeight <= 0 || numericHeight <= 0) {
+    let saveHeight = parseFloat(bioHeight.replace(',', '.')) || 0;
+    if (saveHeight > 0 && saveHeight < 3) {
+      saveHeight = Math.round(saveHeight * 100 * 10) / 10;
+      setBioHeight(String(saveHeight));
+    }
+    const resolvedHeight = saveHeight || numericHeight;
+
+    if (numericWeight <= 0 || resolvedHeight <= 0) {
       Haptics.warning();
       Alert.alert('Atenção', 'Informe peso e altura válidos para registrar a bioimpedância.');
       return;
@@ -538,15 +618,15 @@ export function EvaluationWizardScreen({
       const input: CreateBioimpedanceInput = {
         evaluation_date: todayIso,
         weight: numericWeight,
-        height: numericHeight,
+        height: resolvedHeight,
         abdominal_circ: bioAbdominalCirc ? parseFloat(bioAbdominalCirc.replace(',', '.')) : null,
         bmi: autoBmi.value,
         chronological_age: parseInt(bioChronologicalAge, 10) || null,
         body_age: parseInt(bioBodyAge, 10) || null,
         bmr: autoBmr,
-        body_fat_percent: parseFloat(bioFatPct.replace(',', '.')) || 0,
+        body_fat_percent: bioFatPct ? parseFloat(bioFatPct.replace(',', '.')) : 0,
         visceral_fat: parseInt(bioVisceralFat, 10) || 1,
-        muscle_mass_kg: parseFloat(bioMuscleKg.replace(',', '.')) || 0,
+        muscle_mass_kg: bioMuscleKg ? parseFloat(bioMuscleKg.replace(',', '.')) : 0,
         fat_arm_r: bioFatArmR ? parseFloat(bioFatArmR.replace(',', '.')) : null,
         fat_arm_l: bioFatArmL ? parseFloat(bioFatArmL.replace(',', '.')) : null,
         fat_trunk: bioFatTrunk ? parseFloat(bioFatTrunk.replace(',', '.')) : null,
@@ -559,10 +639,7 @@ export function EvaluationWizardScreen({
       setBioimpedanceList((prev) => [created, ...prev]);
       Haptics.success();
       Alert.alert('Sucesso', 'Aferição de bioimpedância cadastrada com sucesso!');
-      setBioWeight('');
-      setBioAbdominalCirc('');
-      setBioBodyAge('');
-      setBioOpinion('');
+      // Mantém os dados na tela para visualização da avaliação recém-salva
     } catch (err: any) {
       Haptics.error();
       Alert.alert('Erro', err?.message || 'Não foi possível salvar a bioimpedância.');
@@ -1331,14 +1408,28 @@ export function EvaluationWizardScreen({
           {/* ============================================================= */}
           {activeTab === 3 && (
             <View style={styles.tabContent}>
-              <View style={{ marginBottom: Spacing.base }}>
-                <Button
-                  title="Tabela de Referência Clínica"
-                  variant="secondary"
-                  leadingIcon={<Ionicons name="information-circle-outline" size={20} color={Colors.primary} />}
-                  onPress={() => setReferenceModalVisible(true)}
-                  fullWidth
-                />
+              <View style={styles.bioTopButtonsRow}>
+                <View style={{ flex: 1, marginRight: 8 }}>
+                  <Button
+                    title="Tabela de Referência Clínica"
+                    variant="secondary"
+                    leadingIcon={<Ionicons name="information-circle-outline" size={18} color={Colors.primary} />}
+                    onPress={() => setReferenceModalVisible(true)}
+                    fullWidth
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Button
+                    title="+ Nova Aferição"
+                    variant="secondary"
+                    leadingIcon={<Ionicons name="add-circle-outline" size={18} color={Colors.primary} />}
+                    onPress={() => {
+                      Haptics.selection();
+                      clearBioimpedanceForm();
+                    }}
+                    fullWidth
+                  />
+                </View>
               </View>
 
               {/* Form de Nova Aferição */}
@@ -1581,6 +1672,18 @@ export function EvaluationWizardScreen({
                   size="large"
                   fullWidth
                 />
+                <View style={{ marginTop: 8 }}>
+                  <Button
+                    title="Limpar / Nova Aferição em Branco"
+                    variant="outline"
+                    leadingIcon={<Ionicons name="refresh-outline" size={18} color={Colors.textSecondary} />}
+                    onPress={() => {
+                      Haptics.selection();
+                      clearBioimpedanceForm();
+                    }}
+                    fullWidth
+                  />
+                </View>
               </View>
 
               {/* Lista Histórica de Aferições */}
@@ -1599,8 +1702,38 @@ export function EvaluationWizardScreen({
                 ) : (
                   bioimpedanceList.map((bio) => {
                     const bmiInfo = calculateBMI(bio.weight, bio.height);
+                    const waistEval =
+                      bio.abdominal_circ != null && bio.abdominal_circ > 0
+                        ? classifyAbdominalCircumference(bio.abdominal_circ, 'female')
+                        : null;
+
+                    const ageComp =
+                      bio.chronological_age != null &&
+                      bio.body_age != null &&
+                      bio.chronological_age > 0 &&
+                      bio.body_age > 0
+                        ? compareAges(bio.chronological_age, bio.body_age)
+                        : null;
+
+                    const estimatedBmr =
+                      bio.bmr ??
+                      calculateBMR({
+                        weightKg: bio.weight,
+                        heightCm: bio.height,
+                        ageYears: bio.chronological_age || patientAge,
+                        sex: 'female',
+                      });
+
                     return (
-                      <View key={bio.id} style={styles.historyCard}>
+                      <TouchableOpacity
+                        key={bio.id}
+                        style={styles.historyCard}
+                        activeOpacity={0.7}
+                        onPress={() => {
+                          Haptics.selection();
+                          loadBioimpedanceIntoForm(bio);
+                        }}
+                      >
                         <View style={styles.historyCardHeader}>
                           <View style={styles.historyDateRow}>
                             <Ionicons name="calendar-outline" size={14} color={Colors.primary} />
@@ -1621,6 +1754,7 @@ export function EvaluationWizardScreen({
                           />
                         </View>
 
+                        {/* Primary Metrics Grid */}
                         <View style={styles.historyMetricsGrid}>
                           <View style={styles.historyMetricItem}>
                             <Text style={styles.metricItemLabel}>Peso</Text>
@@ -1640,12 +1774,79 @@ export function EvaluationWizardScreen({
                           </View>
                         </View>
 
+                        {/* Secondary Metrics: Circunferência Abdominal & TMB */}
+                        <View style={styles.historySecondaryRow}>
+                          <View style={styles.historyDetailBlock}>
+                            <Text style={styles.historyDetailLabel}>Circunferência Abdominal:</Text>
+                            {bio.abdominal_circ != null ? (
+                              <View style={styles.historyDetailValueRow}>
+                                <Text style={styles.historyDetailValue}>{bio.abdominal_circ} cm</Text>
+                                {waistEval && (
+                                  <Badge
+                                    label={waistEval.classification}
+                                    variant={
+                                      waistEval.classification === 'Adequado'
+                                        ? 'success'
+                                        : waistEval.classification === 'Aumentado'
+                                        ? 'warning'
+                                        : 'alert'
+                                    }
+                                    size="sm"
+                                  />
+                                )}
+                              </View>
+                            ) : (
+                              <Text style={styles.historyDetailValueSub}>Não informada</Text>
+                            )}
+                          </View>
+
+                          <View style={styles.historyDetailBlockRight}>
+                            <Text style={styles.historyDetailLabel}>TMB Estimada:</Text>
+                            <Text style={styles.historyDetailValueBold}>{estimatedBmr} kcal/dia</Text>
+                          </View>
+                        </View>
+
+                        {/* Idades: Cronológica e Corporal com Comparativo */}
+                        {(bio.chronological_age != null || bio.body_age != null) && (
+                          <View style={styles.historyAgeCardRow}>
+                            <View style={styles.historyAgeTextCol}>
+                              <Text style={styles.historyAgeLabel}>
+                                Idades: {bio.chronological_age != null ? `${bio.chronological_age}a (Cronológica)` : '—'} • {bio.body_age != null ? `${bio.body_age}a (Corporal)` : '—'}
+                              </Text>
+                            </View>
+                            {ageComp ? (
+                              <Badge
+                                label={
+                                  ageComp.status === 'younger'
+                                    ? `Rejuvenescimento (-${ageComp.difference} anos)`
+                                    : ageComp.status === 'older'
+                                    ? `Idade Aumentada (+${ageComp.difference} anos)`
+                                    : 'Idade Equivalente (0 anos)'
+                                }
+                                variant={
+                                  ageComp.status === 'younger'
+                                    ? 'success'
+                                    : ageComp.status === 'older'
+                                    ? 'alert'
+                                    : 'primary'
+                                }
+                                size="sm"
+                              />
+                            ) : null}
+                          </View>
+                        )}
+
                         {bio.clinical_opinion ? (
                           <Text style={styles.historyOpinionText}>
                             "{bio.clinical_opinion}"
                           </Text>
                         ) : null}
-                      </View>
+
+                        <View style={styles.historyCardFooter}>
+                          <Ionicons name="create-outline" size={13} color={Colors.primary} />
+                          <Text style={styles.historyCardTapHint}>Toque para carregar no formulário</Text>
+                        </View>
+                      </TouchableOpacity>
                     );
                   })
                 )}
@@ -2132,5 +2333,85 @@ const styles = StyleSheet.create({
     ...Typography.caption1,
     color: Colors.textSecondary,
     lineHeight: 18,
+  },
+  bioTopButtonsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.base,
+  },
+  historySecondaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: Colors.surfaceSecondary,
+    marginTop: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: Radii.sm,
+  },
+  historyDetailBlock: {
+    flex: 1,
+  },
+  historyDetailBlockRight: {
+    alignItems: 'flex-end',
+  },
+  historyDetailLabel: {
+    ...Typography.caption2,
+    color: Colors.textSecondary,
+    marginBottom: 2,
+  },
+  historyDetailValueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  historyDetailValue: {
+    ...Typography.footnote,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+  },
+  historyDetailValueSub: {
+    ...Typography.caption2,
+    color: Colors.textTertiary,
+    fontStyle: 'italic',
+  },
+  historyDetailValueBold: {
+    ...Typography.footnote,
+    fontWeight: '700',
+    color: Colors.primaryDark,
+  },
+  historyAgeCardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#F3EDF7',
+    marginTop: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: Radii.sm,
+    gap: 8,
+  },
+  historyAgeTextCol: {
+    flex: 1,
+  },
+  historyAgeLabel: {
+    ...Typography.caption1,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+  },
+  historyCardFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 4,
+    marginTop: 8,
+    paddingTop: 6,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.hairline,
+  },
+  historyCardTapHint: {
+    ...Typography.caption2,
+    color: Colors.primary,
+    fontWeight: '600',
   },
 });

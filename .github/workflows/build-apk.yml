@@ -55,7 +55,7 @@ jobs:
       - name: 📦 Instalar Dependências
         run: npm install
 
-      - name: 🧪 Executar Testes Automatizados (428 testes)
+      - name: 🧪 Executar Testes Automatizados (455 testes)
         run: npm test
 
       - name: 🔍 Verificação de Tipos TypeScript (Strict)
@@ -115,9 +115,9 @@ jobs:
             - 🏥 **Convênios e Parcerias**: Suporte nativo para Particular, Totalpass, Gympass, IBNJ e Outros (com especificação personalizada).
             - 🤰 **Anamnese & Histórico Clínico**: Campo expandido de Histórico Clínico, reformulação de Gestação (partos, tipo Normal/Cesárea/Ambos, tempo da última gestação e abortos).
             - 📐 **Avaliação Postural**: Adição de Alinhamento de Quadril (Nivelado, Elevado D/E, Anteversão, Retroversão, Rotações).
-            - ⚖️ **Bioimpedância & Idade Corporal**: Idade cronológica, idade corporal com indicador de vitalidade metabólica e Modal com Tabelas de Referência Clínica didáticas (Circunferência Abdominal, % Gordura Pollock, Gordura Visceral e Água Corporal).
+            - ⚖️ **Bioimpedância & Idade Corporal**: Persistência total e hidratação automática do formulário, idade cronológica, idade corporal com indicador de vitalidade metabólica, cards enriquecidos no histórico e Modal com Tabelas de Referência Clínica didáticas.
             - 📄 **Relatório Clínico PDF A4 Atualizado**: Inclusão de foto de perfil, dados obstétricos, alinhamento de quadril e anexo fotográfico opcional de condições.
-            - 🔒 **100% Local-First**: Zero banco de dados externo, sem tela de login, dados e fotos salvos com privacidade total.
+            - 🔒 **100% Local-First & Backup Completo**: Zero banco de dados externo, sem tela de login, dados, fotos e bioimpedância salvos e restaurados com integridade total.
             
             #### 📥 Download do APK:
             Baixe o arquivo **`Pilates-Espaco-Mulher-v1.1.0.apk`** abaixo e instale diretamente no seu dispositivo Android.

@@ -39,6 +39,7 @@ export interface BackupExportResult {
   filename: string;
   jsonString: string;
   counts: EspacoMulherBackupV1['metadata']['counts'];
+  backup?: EspacoMulherBackupV1;
 }
 
 export interface BackupImportResult {
@@ -488,6 +489,7 @@ export async function exportDatabaseBackup(
     filename,
     jsonString,
     counts,
+    backup,
   };
 }
 
@@ -598,14 +600,15 @@ export async function importDatabaseBackup(
     for (const a of data.anamnesis) {
       await db.runAsync(
         `INSERT INTO anamnesis (
-          id, patient_id, lab_tests, medications, allergies, surgeries,
+          id, patient_id, clinical_history, lab_tests, medications, allergies, surgeries,
           fractures, luxations, pregnancies, abortions, physical_activity,
           pain_complaints, pain_intensity, imaging_exams, clinical_notes,
           created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
         [
           sanitizeText(a.id),
           sanitizeText(a.patient_id),
+          sanitizeText(a.clinical_history),
           sanitizeText(a.lab_tests),
           sanitizeText(a.medications),
           sanitizeText(a.allergies),
@@ -632,9 +635,9 @@ export async function importDatabaseBackup(
           id, patient_id, evaluation_date, head, shoulders, thales_triangle,
           knees, feet, cervical, lateral_shoulders, abdomen, dorsal, lumbar,
           pelvis, arch, scapula, scoliosis, posterior_pelvis, gluteal_line,
-          popliteal_line, musculature, photo_frontal_uri, photo_lateral_uri,
+          popliteal_line, hip_alignment, musculature, photo_frontal_uri, photo_lateral_uri,
           photo_posterior_uri, notes, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
         [
           sanitizeText(pos.id),
           sanitizeText(pos.patient_id),
@@ -656,6 +659,7 @@ export async function importDatabaseBackup(
           sanitizeText(pos.posterior_pelvis),
           sanitizeText(pos.gluteal_line),
           sanitizeText(pos.popliteal_line),
+          sanitizeText(pos.hip_alignment),
           sanitizeText(pos.musculature),
           sanitizeText(pos.photo_frontal_uri),
           sanitizeText(pos.photo_lateral_uri),
@@ -672,11 +676,11 @@ export async function importDatabaseBackup(
       await db.runAsync(
         `INSERT INTO bioimpedance (
           id, patient_id, evaluation_date, weight, height, abdominal_circ,
-          bmi, body_age, metabolic_age, bmr, body_fat_percent, visceral_fat,
+          bmi, chronological_age, body_age, metabolic_age, bmr, body_fat_percent, visceral_fat,
           muscle_mass_kg, body_water_pct, ideal_weight, target_weight,
           fat_arm_r, fat_arm_l, fat_trunk, fat_leg_r, fat_leg_l,
           clinical_opinion, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
         [
           sanitizeText(b.id),
           sanitizeText(b.patient_id),
@@ -685,6 +689,7 @@ export async function importDatabaseBackup(
           sanitizeNumber(b.height),
           sanitizeOptionalNumber(b.abdominal_circ),
           sanitizeNumber(b.bmi),
+          sanitizeOptionalNumber(b.chronological_age),
           sanitizeOptionalNumber(b.body_age),
           sanitizeOptionalNumber(b.metabolic_age),
           sanitizeOptionalNumber(b.bmr),
@@ -833,3 +838,8 @@ export async function importDatabaseBackup(
     restoredAt: new Date().toISOString(),
   };
 }
+
+/**
+ * Backward-compatible alias for importDatabaseBackup.
+ */
+export const restoreDatabaseBackup = importDatabaseBackup;

@@ -194,7 +194,12 @@ export function formatDecimalBR(num: number | null | undefined, decimals = 1): s
 
 export function parseDecimalBR(str: string): number | null {
   if (!str) return null;
-  const sanitized = str.trim().replace(/\./g, '').replace(',', '.');
+  const trimmed = str.trim();
+  if (!trimmed) return null;
+  let sanitized = trimmed;
+  if (trimmed.includes(',')) {
+    sanitized = trimmed.replace(/\./g, '').replace(',', '.');
+  }
   const parsed = parseFloat(sanitized);
   return isNaN(parsed) ? null : parsed;
 }

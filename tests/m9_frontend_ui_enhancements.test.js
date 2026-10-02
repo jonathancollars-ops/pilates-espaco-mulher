@@ -216,6 +216,63 @@ describe('M9 Frontend UI & Apple HIG Enhancements QA Suite', () => {
       assert.ok(evalSrc.includes('<BioimpedanceReferenceModal'), 'Must mount BioimpedanceReferenceModal in JSX');
       assert.ok(evalSrc.includes('<PatientConditionPhotosModal'), 'Must mount PatientConditionPhotosModal in JSX');
     });
+
+    test('Synchronizes selectedPatientId with initialPatientId on prop changes', () => {
+      assert.ok(
+        evalSrc.includes('if (initialPatientId && initialPatientId !== selectedPatientId)'),
+        'Must have useEffect synchronizing initialPatientId'
+      );
+    });
+
+    test('Hydrates bioimpedance from latestBioimpedance and resets cleanly when list is empty', () => {
+      assert.ok(
+        evalSrc.includes('const latestBioimpedance = bioimpedanceList.length > 0 ? bioimpedanceList[0] : null'),
+        'Must declare latestBioimpedance'
+      );
+      assert.ok(
+        evalSrc.includes('loadBioimpedanceIntoForm(latestBioimpedance)'),
+        'Must load latestBioimpedance into form'
+      );
+      assert.ok(
+        evalSrc.includes('clearBioimpedanceForm()'),
+        'Must reset form when no bioimpedance exists'
+      );
+    });
+
+    test('Smart save preserves form values and supports meter to centimeter auto-conversion', () => {
+      assert.ok(
+        !evalSrc.includes("setBioWeight('')\n      setBioAbdominalCirc('')"),
+        'Must NOT clear bioWeight or bioAbdominalCirc after saving'
+      );
+      assert.ok(
+        evalSrc.includes('rawNumericHeight < 3') && evalSrc.includes('rawNumericHeight * 100'),
+        'Must auto-convert height if typed in meters'
+      );
+      assert.ok(
+        evalSrc.includes('+ Nova Aferição') || evalSrc.includes('Limpar / Nova Aferição'),
+        'Must provide action to clear form for a new measurement'
+      );
+    });
+
+    test('History cards are enriched with waist circ, ages comparison, TMB, and tap-to-load', () => {
+      assert.ok(
+        evalSrc.includes('classifyAbdominalCircumference'),
+        'History card must evaluate abdominal circumference cardiovascular risk'
+      );
+      assert.ok(
+        evalSrc.includes('compareAges'),
+        'History card must compare chronological vs body age'
+      );
+      assert.ok(
+        evalSrc.includes('estimatedBmr') || evalSrc.includes('TMB Estimada'),
+        'History card must display estimated BMR / TMB'
+      );
+      assert.ok(
+        evalSrc.includes('loadBioimpedanceIntoForm(bio)'),
+        'Touching history card must load measurement back into form'
+      );
+    });
   });
 
 });
+

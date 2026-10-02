@@ -36,27 +36,27 @@ export interface Bioimpedance {
 }
 
 export interface CreateBioimpedanceInput {
-  evaluation_date: string;
-  weight: number;
-  height: number;
-  abdominal_circ?: number | null;
-  bmi?: number; // Optional on input, calculated if not provided
-  chronological_age?: number | null;
-  body_age?: number | null;
-  metabolic_age?: number | null;
-  bmr?: number | null;
-  body_fat_percent: number;
-  visceral_fat: number;
-  muscle_mass_kg: number;
-  muscle_mass_percent?: number | null;
-  body_water_pct?: number | null;
-  ideal_weight?: number | null;
-  target_weight?: number | null;
-  fat_arm_r?: number | null;
-  fat_arm_l?: number | null;
-  fat_trunk?: number | null;
-  fat_leg_r?: number | null;
-  fat_leg_l?: number | null;
+  evaluation_date?: string;
+  weight: number | string;
+  height: number | string;
+  abdominal_circ?: number | string | null;
+  bmi?: number | string | null; // Optional on input, calculated if not provided
+  chronological_age?: number | string | null;
+  body_age?: number | string | null;
+  metabolic_age?: number | string | null;
+  bmr?: number | string | null;
+  body_fat_percent: number | string;
+  visceral_fat: number | string;
+  muscle_mass_kg: number | string;
+  muscle_mass_percent?: number | string | null;
+  body_water_pct?: number | string | null;
+  ideal_weight?: number | string | null;
+  target_weight?: number | string | null;
+  fat_arm_r?: number | string | null;
+  fat_arm_l?: number | string | null;
+  fat_trunk?: number | string | null;
+  fat_leg_r?: number | string | null;
+  fat_leg_l?: number | string | null;
   clinical_opinion?: string | null;
 }
 

@@ -149,18 +149,35 @@ function createTransactionalBackupMockDb(initialData = {}) {
         if (failOnTableInsert === 'anamnesis') {
           throw new Error('Simulated SQLite Disk I/O Error: failed inserting into anamnesis');
         }
-        const [
-          id, patient_id, lab_tests, medications, allergies, surgeries,
-          fractures, luxations, pregnancies, abortions, physical_activity,
-          pain_complaints, pain_intensity, imaging_exams, clinical_notes,
-          created_at, updated_at,
-        ] = params;
-        tables.anamnesis.set(id, {
-          id, patient_id, lab_tests, medications, allergies, surgeries,
-          fractures, luxations, pregnancies, abortions, physical_activity,
-          pain_complaints, pain_intensity, imaging_exams, clinical_notes,
-          created_at, updated_at,
-        });
+        let anaObj;
+        if (params.length >= 18) {
+          const [
+            id, patient_id, clinical_history, lab_tests, medications, allergies, surgeries,
+            fractures, luxations, pregnancies, abortions, physical_activity,
+            pain_complaints, pain_intensity, imaging_exams, clinical_notes,
+            created_at, updated_at,
+          ] = params;
+          anaObj = {
+            id, patient_id, clinical_history, lab_tests, medications, allergies, surgeries,
+            fractures, luxations, pregnancies, abortions, physical_activity,
+            pain_complaints, pain_intensity, imaging_exams, clinical_notes,
+            created_at, updated_at,
+          };
+        } else {
+          const [
+            id, patient_id, lab_tests, medications, allergies, surgeries,
+            fractures, luxations, pregnancies, abortions, physical_activity,
+            pain_complaints, pain_intensity, imaging_exams, clinical_notes,
+            created_at, updated_at,
+          ] = params;
+          anaObj = {
+            id, patient_id, lab_tests, medications, allergies, surgeries,
+            fractures, luxations, pregnancies, abortions, physical_activity,
+            pain_complaints, pain_intensity, imaging_exams, clinical_notes,
+            created_at, updated_at,
+          };
+        }
+        tables.anamnesis.set(params[0], anaObj);
         return { lastInsertRowId: 1, changes: 1 };
       }
 
@@ -168,20 +185,26 @@ function createTransactionalBackupMockDb(initialData = {}) {
         if (failOnTableInsert === 'postural_evaluations') {
           throw new Error('Simulated SQLite Disk I/O Error: failed inserting into postural_evaluations');
         }
-        const [
-          id, patient_id, evaluation_date, head, cervical_spine, shoulders,
-          scapulae, thoracic_spine, lumbar_spine, pelvis, knees, feet,
-          thales_triangle, frontal_photo_uri, lateral_photo_uri, posterior_photo_uri,
-          asymmetry_detected, thoracic_kyphosis, lumbar_lordosis, gluteal_line,
-          popliteal_line, scoliosis, musculature, notes, created_at, updated_at,
-        ] = params;
-        tables.postural_evaluations.set(id, {
-          id, patient_id, evaluation_date, head, cervical_spine, shoulders,
-          scapulae, thoracic_spine, lumbar_spine, pelvis, knees, feet,
-          thales_triangle, frontal_photo_uri, lateral_photo_uri, posterior_photo_uri,
-          asymmetry_detected, thoracic_kyphosis, lumbar_lordosis, gluteal_line,
-          popliteal_line, scoliosis, musculature, notes, created_at, updated_at,
-        });
+        let posObj;
+        if (params.length >= 28) {
+          const [
+            id, patient_id, evaluation_date, head, shoulders, thales_triangle,
+            knees, feet, cervical, lateral_shoulders, abdomen, dorsal, lumbar,
+            pelvis, arch, scapula, scoliosis, posterior_pelvis, gluteal_line,
+            popliteal_line, hip_alignment, musculature, photo_frontal_uri, photo_lateral_uri,
+            photo_posterior_uri, notes, created_at, updated_at,
+          ] = params;
+          posObj = {
+            id, patient_id, evaluation_date, head, shoulders, thales_triangle,
+            knees, feet, cervical, lateral_shoulders, abdomen, dorsal, lumbar,
+            pelvis, arch, scapula, scoliosis, posterior_pelvis, gluteal_line,
+            popliteal_line, hip_alignment, musculature, photo_frontal_uri, photo_lateral_uri,
+            photo_posterior_uri, notes, created_at, updated_at,
+          };
+        } else {
+          posObj = { id: params[0], patient_id: params[1], evaluation_date: params[2] };
+        }
+        tables.postural_evaluations.set(params[0], posObj);
         return { lastInsertRowId: 1, changes: 1 };
       }
 
@@ -189,20 +212,26 @@ function createTransactionalBackupMockDb(initialData = {}) {
         if (failOnTableInsert === 'bioimpedance') {
           throw new Error('Simulated SQLite Disk I/O Error: failed inserting into bioimpedance');
         }
-        const [
-          id, patient_id, evaluation_date, weight, height, abdominal_circ,
-          bmi, body_age, metabolic_age, bmr, body_fat_percent, visceral_fat,
-          muscle_mass_kg, body_water_pct, ideal_weight, target_weight,
-          fat_arm_r, fat_arm_l, fat_trunk, fat_leg_r, fat_leg_l,
-          clinical_opinion, created_at, updated_at,
-        ] = params;
-        tables.bioimpedance.set(id, {
-          id, patient_id, evaluation_date, weight, height, abdominal_circ,
-          bmi, body_age, metabolic_age, bmr, body_fat_percent, visceral_fat,
-          muscle_mass_kg, body_water_pct, ideal_weight, target_weight,
-          fat_arm_r, fat_arm_l, fat_trunk, fat_leg_r, fat_leg_l,
-          clinical_opinion, created_at, updated_at,
-        });
+        let bioObj;
+        if (params.length >= 25) {
+          const [
+            id, patient_id, evaluation_date, weight, height, abdominal_circ,
+            bmi, chronological_age, body_age, metabolic_age, bmr, body_fat_percent, visceral_fat,
+            muscle_mass_kg, body_water_pct, ideal_weight, target_weight,
+            fat_arm_r, fat_arm_l, fat_trunk, fat_leg_r, fat_leg_l,
+            clinical_opinion, created_at, updated_at,
+          ] = params;
+          bioObj = {
+            id, patient_id, evaluation_date, weight, height, abdominal_circ,
+            bmi, chronological_age, body_age, metabolic_age, bmr, body_fat_percent, visceral_fat,
+            muscle_mass_kg, body_water_pct, ideal_weight, target_weight,
+            fat_arm_r, fat_arm_l, fat_trunk, fat_leg_r, fat_leg_l,
+            clinical_opinion, created_at, updated_at,
+          };
+        } else {
+          bioObj = { id: params[0], patient_id: params[1], evaluation_date: params[2], weight: params[3], height: params[4] };
+        }
+        tables.bioimpedance.set(params[0], bioObj);
         return { lastInsertRowId: 1, changes: 1 };
       }
 
@@ -536,6 +565,30 @@ describe('M6 Backup Engine & Offline Update Detection Suite', () => {
       assert.equal(mockDb.tables.exercises.has('ex-val'), true);
       assert.equal(mockDb.tables.routines.has('rou-val'), true);
       assert.equal(mockDb.tables.routine_items.has('ri-val'), true);
+    });
+
+    test('Preserves chronological_age, hip_alignment, and clinical_history in backup restore', async () => {
+      const validBackup = buildValidBackupObject();
+      validBackup.data.anamnesis[0].clinical_history = 'Paciente com queixas lombares crônicas';
+      validBackup.data.postural_evaluations[0].hip_alignment = 'Elevação crista ilíaca direita 0.5cm';
+      validBackup.data.bioimpedance[0].chronological_age = 42;
+      validBackup.data.bioimpedance[0].body_age = 38;
+      validBackup.data.bioimpedance[0].abdominal_circ = 78.5;
+
+      const validJson = JSON.stringify(validBackup);
+      const importResult = await importDatabaseBackup(mockDb, validJson);
+
+      assert.equal(importResult.success, true);
+      const ana = mockDb.tables.anamnesis.get('ana-val');
+      assert.equal(ana.clinical_history, 'Paciente com queixas lombares crônicas');
+
+      const pos = mockDb.tables.postural_evaluations.get('pos-val');
+      assert.equal(pos.hip_alignment, 'Elevação crista ilíaca direita 0.5cm');
+
+      const bio = mockDb.tables.bioimpedance.get('bio-val');
+      assert.equal(bio.chronological_age, 42);
+      assert.equal(bio.body_age, 38);
+      assert.equal(bio.abdominal_circ, 78.5);
     });
   });
 
